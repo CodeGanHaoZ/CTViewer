@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>3D 汽车拆解可视化 · Teardown Viewer</title>
+<meta http-equiv="refresh" content="0; url=./car-exploded.html">
+<link rel="canonical" href="./car-exploded.html">
+<style>
+  html,body{margin:0;height:100%;background:#04060b;color:#c9d6e6;
+    font:13px/1.6 -apple-system,"Segoe UI",system-ui,sans-serif;
+    display:flex;align-items:center;justify-content:center}
+  a{color:#4aa8ff;text-decoration:none}
+  .box{text-align:center;letter-spacing:.04em}
+  .ring{width:34px;height:34px;margin:0 auto 14px;border-radius:50%;
+    border:2px solid #1c2634;border-top-color:#4aa8ff;animation:s 1s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+</style>
+<script>location.replace('./car-exploded.html' + location.search + location.hash);</script>
+</head>
+<body>
+  <div class="box">
+    <div class="ring"></div>
+    <p>正在进入拆解视图…</p>
+    <p><a href="./car-exploded.html">car-exploded.html</a> · <a href="./car-model-picker.html">模型选型台</a></p>
+  </div>
+</body>
+</html>
