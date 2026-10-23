@@ -219,11 +219,11 @@ if (location.protocol === 'file:') document.getElementById('fileWarn').hidden = 
    --------------------------------------------------------- */
 const MODELS = [
   {
-    id:'carconcept', file:'assets/cars/carconcept.glb',
+    id:'carconcept', file:'assets/cars/carconcept.draco.glb',
     name:'Concept Car', en:'概念跑车 · Khronos',
     origin:'Khronos glTF Sample Assets（RapidPipeline 导出）',
     license:'Khronos 样例资产 · 宽松署名许可',
-    size:'11.2 MB', tris:'213,347', meshes:'97', mats:'29', tex:'15',
+    size:'4.0 MB (Draco)', tris:'213,347', meshes:'97', mats:'29', tex:'15',
     split:5, group:'车身 40 · 内饰 40 · 轮/制动 13 · 动力 1 · 车轴 1',
     variants:true, anim:false, draco:false,
     tags:['clearcoat 车漆','transmission 玻璃','emissive 灯组','KHR_materials_variants 多配色'],
@@ -418,7 +418,7 @@ function makeViewer(m){
   loader.setDRACOLoader(draco);
   const pct = m.el.querySelector('.pct');
 
-  loader.load(m.file, gltf => {
+  const onLoaded = gltf => {
     const model = gltf.scene;
     // 归一化到统一尺寸并把底面贴地
     const box0 = new THREE.Box3().setFromObject(model);
@@ -434,17 +434,32 @@ function makeViewer(m){
     resize();
     pct.style.opacity = 0;
     setTimeout(() => pct.remove(), 320);
-  },
-  xhr => {
-    if (xhr && xhr.lengthComputable) pct.textContent = '加载中 ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
-  },
-  err => {
+  };
+  const onProgress = xhr => {
+    if (xhr && xhr.lengthComputable) pct.textContent = '加载中 ' + Math.min(100, Math.round(xhr.loaded / xhr.total * 100)) + '%';
+  };
+  const onError = err => {
     const e = m.el.querySelector('.err');
     e.style.display = 'flex';
     e.textContent = '加载失败：' + (err && err.message ? err.message : err) +
-      '　（若以 file:// 打开会被浏览器拦截，请改用本地服务器访问）';
+      '　（网络较慢或中断，可刷新重试；本地请用 HTTP 服务器打开）';
     pct.remove();
+  };
+
+  /* 线上优先走 jsDelivr 镜像（国内比 GitHub Pages 快很多），失败回退同源 */
+  const onPages = /\.github\.io$/.test(location.hostname);
+  const CDN = 'https://cdn.jsdelivr.net/gh/CodeGanHaoZ/CTViewer@main/';
+  let fellBack = false;
+  const start = url => loader.load(url, onLoaded, onProgress, err => {
+    if (onPages && !fellBack) {
+      fellBack = true;
+      console.warn('[picker] CDN 失败，回退同源：', m.file);
+      start('./' + m.file);
+      return;
+    }
+    onError(err);
   });
+  start(onPages ? CDN + m.file : './' + m.file);
 
   resize();
   addEventListener('resize', resize);
