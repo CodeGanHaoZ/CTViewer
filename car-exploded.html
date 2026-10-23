@@ -1,0 +1,2170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>汽车拆解可视化 · Concept Car / Ferrari 458</title>
+<style>
+  :root{
+    --bg:#04060b; --bg2:#070b12; --panel:rgba(11,16,25,.86); --panel-s:#0c121c;
+    --line:#18202d; --line2:#253243;
+    --tx:#e6ecf5; --tx2:#93a1b5; --tx3:#5f6d80;
+    --acc:#4aa8ff; --acc2:#93d0ff;
+    --shadow:0 18px 50px -24px #000;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg)}
+  body{
+    color:var(--tx); font:13.5px/1.55 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ---------- 滚动条（与主题同色） ---------- */
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{
+    background:linear-gradient(180deg,rgba(74,168,255,.5),rgba(74,168,255,.18));
+    border:2px solid transparent;background-clip:padding-box;border-radius:99px;
+    transition:background .2s;
+  }
+  ::-webkit-scrollbar-thumb:hover{
+    background:linear-gradient(180deg,rgba(74,168,255,.85),rgba(74,168,255,.42));
+    background-clip:padding-box;
+  }
+  ::-webkit-scrollbar-thumb:active{
+    background:linear-gradient(180deg,#93d0ff,rgba(74,168,255,.6));background-clip:padding-box;
+  }
+  ::-webkit-scrollbar-corner{background:transparent}
+  @supports not selector(::-webkit-scrollbar){
+    html{scrollbar-width:thin;scrollbar-color:rgba(74,168,255,.45) transparent}
+  }
+
+  #app{
+    display:grid; height:100%;
+    grid-template-columns:296px minmax(0,1fr) 322px;
+    grid-template-rows:56px minmax(0,1fr) 46px;
+    grid-template-areas:"head head head" "left stage right" "foot foot foot";
+  }
+
+  /* ---------- 顶栏 ---------- */
+  header{
+    grid-area:head; display:flex; align-items:center; gap:18px; padding:0 18px;
+    border-bottom:1px solid var(--line); background:rgba(9,11,14,.9);
+    backdrop-filter:blur(12px); z-index:30;
+  }
+  .brand{display:flex;align-items:center;gap:9px;white-space:nowrap}
+  .brand .mark{
+    width:9px;height:9px;border-radius:2px;flex:none;transform:rotate(45deg);
+    background:linear-gradient(135deg,var(--acc2),var(--acc));
+    animation:markPulse 3.4s ease-in-out infinite;
+  }
+  @keyframes markPulse{
+    0%,100%{box-shadow:0 0 0 1px rgba(74,168,255,.28),0 0 7px rgba(74,168,255,.35)}
+    50%{box-shadow:0 0 0 1px rgba(74,168,255,.62),0 0 16px rgba(74,168,255,.75)}
+  }
+  .brand span{font-size:11px;color:var(--tx3);letter-spacing:.16em;text-transform:uppercase;transition:color .3s}
+  header:hover .brand span{color:var(--tx2)}
+  .tabs{
+    display:flex;gap:4px;margin-left:6px;min-width:0;overflow-x:auto;
+    scrollbar-width:none;-ms-overflow-style:none;
+  }
+  .tabs::-webkit-scrollbar{display:none}
+  /* 窄屏车型多于可视宽度时，右边缘渐隐提示还能横滑 */
+  .tabs.fade{
+    -webkit-mask-image:linear-gradient(90deg,#000 0,#000 86%,transparent 100%);
+    mask-image:linear-gradient(90deg,#000 0,#000 86%,transparent 100%);
+  }
+  .tab{
+    border:1px solid transparent;background:transparent;color:var(--tx2);
+    padding:6px 10px;border-radius:8px;cursor:pointer;font-size:12.5px;transition:.16s;
+    display:flex;align-items:center;gap:6px;font-family:inherit;flex:none;white-space:nowrap;
+  }
+  .tab:hover{background:#12161c;color:var(--tx)}
+  .tab.on{background:#171c23;border-color:var(--line2);color:var(--tx)}
+  .tab i{
+    font-style:normal;font-size:10px;color:var(--tx3);background:#0c0f13;
+    border:1px solid var(--line);padding:1px 5px;border-radius:4px;font-variant-numeric:tabular-nums;
+  }
+  .tab.on i{color:var(--acc);border-color:rgba(74,168,255,.35);background:rgba(74,168,255,.08)}
+  .grow{flex:1}
+  .hbtn{
+    border:1px solid var(--line2);background:#12161c;color:var(--tx2);border-radius:7px;
+    white-space:nowrap;padding:6px 11px;font-size:12px;cursor:pointer;transition:.16s;font-family:inherit;
+  }
+  .hbtn:hover{color:var(--tx);border-color:#3a4350}
+  .hbtn.on{color:var(--acc);border-color:rgba(74,168,255,.45);background:rgba(74,168,255,.08)}
+
+  /* ---------- 左：部件清单 ---------- */
+  aside{background:var(--bg2);overflow:hidden;display:flex;flex-direction:column}
+  .left{grid-area:left;border-right:1px solid var(--line)}
+  .right{grid-area:right;border-left:1px solid var(--line)}
+  .ph{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:13px 15px 9px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--tx3);border-bottom:1px solid var(--line);flex:none;
+  }
+  .ph b{color:var(--tx2);font-weight:500;letter-spacing:0;text-transform:none;font-size:11.5px}
+  .list{overflow-y:auto;flex:1;padding:8px 9px 20px}
+
+  .grp{margin-bottom:5px;border-radius:8px;background:#0d1014;border:1px solid #171b21;overflow:hidden}
+  .grp.open{border-color:#232932}
+  .grp>summary{
+    list-style:none;cursor:pointer;padding:9px 11px;display:flex;align-items:center;gap:8px;
+    font-size:12.5px;color:var(--tx);user-select:none;
+  }
+  .grp>summary::-webkit-details-marker{display:none}
+  .grp>summary .dot{width:6px;height:6px;border-radius:50%;background:#2f3742;flex:none;transition:.2s}
+  .grp.has .dot{background:var(--acc);box-shadow:0 0 8px rgba(74,168,255,.7)}
+  .grp>summary .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .grp>summary .ct{font-size:10.5px;color:var(--tx3);font-variant-numeric:tabular-nums}
+  .grp>summary .go{
+    border:1px solid #262d37;background:#131820;color:var(--tx2);border-radius:5px;
+    font-size:10.5px;padding:2px 7px;cursor:pointer;font-family:inherit;flex:none;
+  }
+  .grp>summary .go:hover{color:var(--acc);border-color:rgba(74,168,255,.4)}
+
+  .items{padding:2px 6px 7px}
+  .it{
+    display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;cursor:pointer;
+    font-size:12px;color:var(--tx2);transition:.13s;
+  }
+  .it:hover{background:#151a21;color:var(--tx)}
+  .it.sel{background:rgba(74,168,255,.1);color:var(--acc2)}
+  .it.ex{color:#b9c0ca}
+  .it .n{
+    font-size:9.5px;color:var(--tx3);min-width:20px;font-variant-numeric:tabular-nums;
+  }
+  .it.sel .n{color:var(--acc)}
+  .it .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .it .t em{font-style:normal;font-size:10px;color:var(--tx3);margin-left:5px}
+  .it .st{width:5px;height:5px;border-radius:50%;background:#252b34;flex:none}
+  .it.ex .st{background:var(--acc)}
+
+  /* ---------- 中间舞台 ---------- */
+  #stage{grid-area:stage;position:relative;overflow:hidden;background:
+      radial-gradient(78% 62% at 50% 74%, rgba(74,168,255,.075), transparent 62%),
+      radial-gradient(120% 100% at 50% 0%, #0d1420 0%, #04060b 58%)}
+  #c{display:block;width:100%;height:100%;cursor:grab}
+  #c:active{cursor:grabbing}
+
+  #labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+  .lbl{
+    position:absolute;transform:translate(0,-50%);white-space:nowrap;
+    display:flex;align-items:center;gap:0;opacity:0;transition:opacity .2s;
+  }
+  .lbl.on{opacity:1}
+  .lbl .stem{
+    width:34px;height:1px;background:linear-gradient(90deg,rgba(74,168,255,.15),rgba(74,168,255,.75));
+    position:relative;flex:none;
+  }
+  .lbl .stem:before{
+    content:"";position:absolute;left:-2px;top:-2px;width:5px;height:5px;border-radius:50%;
+    background:var(--acc);box-shadow:0 0 10px 2px rgba(74,168,255,.55);
+  }
+  .lbl .box{
+    background:rgba(10,12,16,.92);border:1px solid rgba(74,168,255,.32);border-left:2px solid var(--acc);
+    border-radius:5px;padding:5px 9px 6px;backdrop-filter:blur(6px);
+    box-shadow:0 8px 24px -12px #000;
+  }
+  .lbl .lname{font-size:12px;color:#fff;font-weight:600;letter-spacing:.01em}
+  .lbl .lspec{font-size:10.5px;color:var(--tx2);margin-top:1px;font-variant-numeric:tabular-nums}
+
+  #load{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;
+    transition:opacity .4s;z-index:5;
+  }
+  #load .ring{
+    width:38px;height:38px;margin:0 auto 12px;border-radius:50%;
+    border:2px solid #1b2432;border-top-color:var(--acc);animation:spin 1s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #load p{margin:0;font-size:12px;color:var(--tx2);font-variant-numeric:tabular-nums}
+  #load.gone{opacity:0;pointer-events:none}
+
+  #hint{
+    position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:5;
+    background:rgba(10,12,16,.82);border:1px solid var(--line);border-radius:20px;
+    padding:6px 15px;font-size:11.5px;color:var(--tx2);backdrop-filter:blur(8px);
+    display:flex;gap:12px;white-space:nowrap;transition:opacity .4s;
+  }
+  #hint b{color:var(--tx);font-weight:500}
+  #hint em{font-style:normal;color:var(--tx3)}
+
+  #tools{
+    position:absolute;right:14px;bottom:14px;display:flex;flex-direction:column;gap:7px;z-index:6;
+  }
+  #tools button{
+    width:36px;height:36px;border-radius:9px;border:1px solid var(--line2);background:rgba(15,18,23,.9);
+    color:var(--tx2);cursor:pointer;display:grid;place-items:center;transition:.16s;backdrop-filter:blur(8px);
+  }
+  #tools button:hover{color:var(--tx);border-color:#3a4350}
+  #tools button.on{color:var(--acc);border-color:rgba(74,168,255,.45);background:rgba(74,168,255,.1)}
+  #tools svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;
+    stroke-linecap:round;stroke-linejoin:round}
+
+  /* ---------- 车漆 / 涂装 ---------- */
+  #paint{
+    position:absolute;left:14px;bottom:14px;z-index:6;max-width:calc(100% - 28px);
+    background:rgba(10,15,23,.88);border:1px solid var(--line);border-radius:11px;
+    padding:8px 10px 9px;backdrop-filter:blur(10px);box-shadow:0 10px 30px -18px #000;
+  }
+  #paint .pt-t{
+    display:flex;align-items:baseline;gap:7px;font-size:10px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--tx3);margin-bottom:8px;
+  }
+  #paint .pt-t em{
+    font-style:normal;letter-spacing:0;text-transform:none;
+    font-size:11.5px;color:var(--acc);font-weight:600;
+  }
+  #paint .pt-sw{display:flex;gap:6px;margin-bottom:8px}
+  #paint .sw{
+    width:20px;height:20px;flex:none;border-radius:50%;padding:0;cursor:pointer;
+    border:1.5px solid rgba(255,255,255,.16);position:relative;transition:transform .15s,border-color .15s;
+  }
+  #paint .sw:hover{transform:scale(1.13)}
+  #paint .sw.on{border-color:var(--acc);box-shadow:0 0 0 2px rgba(74,168,255,.26),0 0 11px rgba(74,168,255,.42)}
+  #paint .sw i{position:absolute;inset:2.5px;border-radius:50%;display:block}
+  #paint .pt-fn{display:flex;gap:5px}
+  #paint .fn{
+    border:1px solid var(--line2);background:#0f151f;color:var(--tx2);border-radius:6px;
+    font-size:10.5px;padding:3px 7px;cursor:pointer;font-family:inherit;
+    transition:.15s;white-space:nowrap;
+  }
+  #paint .fn:hover{color:var(--tx)}
+  #paint .fn.on{color:var(--acc);border-color:rgba(74,168,255,.45);background:rgba(74,168,255,.1)}
+
+  /* ---------- 右：详情 ---------- */
+  .info{overflow-y:auto;flex:1;padding:15px 16px 24px}
+  .eyebrow{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:6px}
+  .h1{font-size:18px;font-weight:640;letter-spacing:-.01em;line-height:1.3;margin:0 0 3px}
+  .sub{font-size:11.5px;color:var(--tx3);margin-bottom:14px}
+  .badge{
+    display:inline-flex;align-items:center;gap:5px;font-size:10.5px;padding:2px 8px;border-radius:20px;
+    border:1px solid rgba(74,168,255,.3);background:rgba(74,168,255,.08);color:var(--acc);margin-bottom:13px;
+  }
+  .badge i{width:4px;height:4px;border-radius:50%;background:var(--acc)}
+
+  .rows{display:flex;flex-direction:column;gap:0;margin:2px 0 16px}
+  .row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid #161a20;font-size:12.5px}
+  .row span{color:var(--tx3);flex:none}
+  .row b{font-weight:500;color:var(--tx);text-align:right;font-variant-numeric:tabular-nums}
+  .row b.hl{color:var(--acc)}
+
+  .desc{font-size:12.3px;color:var(--tx2);line-height:1.72;margin:0 0 16px}
+  .sect{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);
+    margin:0 0 9px;padding-top:14px;border-top:1px solid var(--line)}
+
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+  .chip{font-size:11px;padding:4px 9px;border-radius:6px;background:#0e1218;
+    border:1px solid var(--line);color:var(--tx2)}
+  .chip.on{border-color:rgba(74,168,255,.4);color:var(--acc);background:rgba(74,168,255,.07)}
+
+  .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .act{
+    flex:1;min-width:96px;border:1px solid var(--line2);background:#12161c;color:var(--tx);
+    border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer;transition:.16s;font-family:inherit;
+  }
+  .act:hover{border-color:var(--acc);color:var(--acc)}
+  .act.primary{background:var(--acc);border-color:var(--acc);color:#03121f;font-weight:600}
+  .act.primary:hover{background:var(--acc2);color:#03121f}
+
+  .bar-wrap{height:4px;border-radius:2px;background:#191e25;overflow:hidden;margin:8px 0 14px}
+  .bar-fill{height:100%;background:linear-gradient(90deg,#1a5da8,var(--acc));transition:width .3s}
+
+  /* ---------- 底栏 ---------- */
+  footer{
+    grid-area:foot;display:flex;align-items:center;gap:16px;padding:0 18px;
+    border-top:1px solid var(--line);background:#090b0e;font-size:11.5px;color:var(--tx3);
+  }
+  footer kbd{
+    font-family:inherit;font-size:10.5px;background:#141920;border:1px solid #242b34;
+    border-bottom-width:2px;border-radius:4px;padding:1px 5px;color:var(--tx2);margin-right:3px;
+  }
+  footer .sep{width:1px;height:14px;background:#1d2229}
+  footer .fbtn{
+    margin-left:auto;border:1px solid var(--line2);background:#11161c;color:var(--tx2);
+    border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;font-family:inherit;
+  }
+  footer .fbtn:hover{color:var(--tx)}
+
+  /* =========================================================
+     动效（保持克制：位移 ≤10px、时长 0.2–0.5s，只用 transform/opacity）
+     ========================================================= */
+  @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes fadeDown{from{opacity:0;transform:translateX(-50%) translateY(-6px)}
+                      to{opacity:1;transform:translateX(-50%)}}
+  @keyframes slideL{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:none}}
+  @keyframes slideR{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+  @keyframes popIn{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:none}}
+  @keyframes panelIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+  @keyframes itemIn{from{opacity:0;transform:translateX(-7px)}to{opacity:1;transform:none}}
+  @keyframes itemsIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  @keyframes sweep{0%{transform:translateX(-240px);opacity:0}12%{opacity:1}88%{opacity:1}
+                   100%{transform:translateX(calc(100vw + 240px));opacity:0}}
+  @keyframes shine{0%{transform:translateX(-130%)}55%,100%{transform:translateX(330%)}}
+  @keyframes bump{0%{transform:none}32%{transform:translateY(-2px) scale(1.07)}100%{transform:none}}
+  @keyframes swPop{0%{transform:scale(1)}46%{transform:scale(1.2)}100%{transform:scale(1)}}
+  @keyframes spinSlow{to{transform:rotate(360deg)}}
+  @keyframes drawerL{from{transform:translateX(-100%)}to{transform:none}}
+  @keyframes drawerR{from{transform:translateX(100%)}to{transform:none}}
+
+  /* 入场：三栏依次浮现 */
+  header{position:relative;animation:fadeUp .45s cubic-bezier(.22,.9,.28,1) .02s both}
+  .left{animation:slideL .5s cubic-bezier(.22,.9,.28,1) .07s both}
+  .right{animation:slideR .5s cubic-bezier(.22,.9,.28,1) .13s both}
+  footer{animation:fadeUp .45s ease .2s both}
+  #stage{animation:fadeIn .9s ease both}
+
+  /* 顶栏：底边流光 + tab 下划线 + 按钮微抬升 */
+  header::after{
+    content:"";position:absolute;left:0;bottom:-1px;width:240px;height:1px;pointer-events:none;
+    background:linear-gradient(90deg,transparent,rgba(74,168,255,.9),transparent);
+    animation:sweep 9s linear infinite;
+  }
+  .tab{position:relative;overflow:hidden}
+  .tab::after{
+    content:"";position:absolute;left:11px;right:11px;bottom:3px;height:1.5px;border-radius:2px;
+    background:linear-gradient(90deg,transparent,var(--acc),transparent);
+    transform:scaleX(0);opacity:0;
+    transition:transform .3s cubic-bezier(.22,.9,.28,1),opacity .2s;
+  }
+  .tab:hover::after{transform:scaleX(.62);opacity:.5}
+  .tab.on::after{transform:scaleX(1);opacity:1}
+  .tab:hover{transform:translateY(-1px)}
+  .tab:active{transform:translateY(0) scale(.98)}
+
+  .hbtn,#tools button,#paint .fn,footer .fbtn,.act{transition:.18s cubic-bezier(.22,.9,.28,1)}
+  .hbtn{position:relative;overflow:hidden}
+  .hbtn::before{
+    content:"";position:absolute;top:0;bottom:0;left:0;width:46%;pointer-events:none;
+    background:linear-gradient(90deg,transparent,rgba(147,208,255,.26),transparent);
+    transform:translateX(-150%) skewX(-18deg);opacity:0;
+  }
+  .hbtn:hover::before{animation:btnShine .8s ease}
+  @keyframes btnShine{
+    0%{transform:translateX(-150%) skewX(-18deg);opacity:0}
+    22%{opacity:1}
+    100%{transform:translateX(320%) skewX(-18deg);opacity:0}
+  }
+  .grp[open]>summary .dot{transform:scale(1.25)}
+  .hbtn:hover,#tools button:hover,#paint .fn:hover,footer .fbtn:hover,.act:hover{
+    transform:translateY(-1px);box-shadow:0 8px 18px -12px rgba(74,168,255,.85);
+  }
+  .hbtn:active,#tools button:active,#paint .fn:active,footer .fbtn:active,.act:active{
+    transform:translateY(0) scale(.985);
+  }
+
+  /* 左侧清单：分组展开、条目 stagger、悬浮指示条 */
+  .grp{transition:border-color .22s,box-shadow .22s}
+  .grp.open{box-shadow:inset 0 0 0 1px rgba(74,168,255,.07)}
+  .grp>summary{transition:background .2s,color .2s}
+  .grp>summary:hover{background:rgba(74,168,255,.055)}
+  .grp>summary:hover .dot{transform:scale(1.6)}
+  .grp>summary:hover .go{transform:translateY(-1px)}
+  .grp>.items{animation:itemsIn .26s cubic-bezier(.22,.9,.28,1) both}
+  .it{
+    position:relative;animation:itemIn .3s cubic-bezier(.22,.9,.28,1) both;
+    animation-delay:calc(var(--i,0) * 16ms);
+  }
+  .it::before{
+    content:"";position:absolute;left:0;top:5px;bottom:5px;width:2px;border-radius:2px;
+    background:linear-gradient(180deg,var(--acc2),var(--acc));
+    transform:scaleY(0);transition:transform .22s cubic-bezier(.22,.9,.28,1);
+  }
+  .it:hover::before{transform:scaleY(.65)}
+  .it.sel::before{transform:scaleY(1);box-shadow:0 0 9px rgba(74,168,255,.75)}
+  .it .st{transition:background .2s,box-shadow .2s}
+  .it.ex .st{box-shadow:0 0 8px rgba(74,168,255,.75)}
+
+  /* 右侧详情：内容切换时逐层浮现 */
+  .info>*{animation:panelIn .38s cubic-bezier(.22,.9,.28,1) both}
+  .info>*:nth-child(1){animation-delay:.02s}
+  .info>*:nth-child(2){animation-delay:.05s}
+  .info>*:nth-child(3){animation-delay:.08s}
+  .info>*:nth-child(4){animation-delay:.11s}
+  .info>*:nth-child(5){animation-delay:.135s}
+  .info>*:nth-child(6){animation-delay:.16s}
+  .info>*:nth-child(n+7){animation-delay:.185s}
+
+  /* 进度条流光 + 底栏数字脉冲 */
+  .bar-fill{position:relative;overflow:hidden}
+  .bar-fill::after{
+    content:"";position:absolute;top:0;bottom:0;left:0;width:44%;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);
+    animation:shine 2.6s ease-in-out infinite;
+  }
+  #fExplode.bump{animation:bump .5s cubic-bezier(.22,.9,.28,1)}
+  #fExplode{display:inline-block}
+
+  /* 舞台浮层：提示、工具栏、车漆面板依次入场 */
+  #hint{animation:fadeDown .6s cubic-bezier(.22,.9,.28,1) .3s both}
+  #tools{animation:slideR .55s cubic-bezier(.22,.9,.28,1) .4s both}
+  #tools button:hover svg{transform:rotate(-6deg) scale(1.08)}
+  #tools svg{transition:transform .28s cubic-bezier(.22,.9,.28,1)}
+  #tRotate.on svg{animation:spinSlow 9s linear infinite}
+  #paint{animation:popIn .55s cubic-bezier(.22,.9,.28,1) .45s both}
+  #paint .sw.on{animation:swPop .32s cubic-bezier(.3,1.3,.5,1)}
+  #load{transition:opacity .45s,transform .45s}
+  #load.gone{transform:translate(-50%,-50%) scale(.94)}
+
+  /* 抽屉（窄屏） */
+  body.drawer-left aside.left{animation:drawerL .28s cubic-bezier(.22,.9,.28,1)}
+  body.drawer-right aside.right{animation:drawerR .28s cubic-bezier(.22,.9,.28,1)}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;
+      transition-duration:.001ms!important}
+  }
+
+  /* ---------- 响应式 ---------- */
+  @media (max-width:1180px){
+    #app{grid-template-columns:260px minmax(0,1fr) 292px}
+  }
+  @media (max-width:980px){
+    #app{
+      grid-template-columns:minmax(0,1fr);
+      grid-template-rows:52px minmax(0,1fr) 44px;
+      grid-template-areas:"head" "stage" "foot";
+    }
+    aside{display:none}
+    .brand span{display:none}
+    .brand b{font-size:13.5px}
+    header{gap:8px;padding:0 12px}
+    header .hbtn#btnExplode, header .hbtn#btnReset{display:none}
+    .tab{padding:5px 8px;font-size:12px;gap:5px}
+    footer span, footer .sep{display:none}
+    footer{padding:0 12px}
+    #hint{font-size:10.5px;gap:8px;padding:5px 11px;top:8px}
+    #paint{left:10px;bottom:10px;padding:7px 9px 8px;border-radius:10px}
+    #paint .sw{width:19px;height:19px}
+    #paint .pt-t{margin-bottom:6px}
+    #paint .pt-sw{gap:6px;margin-bottom:7px}
+    #paint .fn{font-size:10px;padding:3px 6px}
+    body.drawer-left aside.left,body.drawer-right aside.right{
+      display:flex;position:fixed;top:52px;bottom:44px;z-index:40;width:min(320px,86vw);
+      box-shadow:var(--shadow);background:#0b0e12;
+    }
+    body.drawer-left aside.left{left:0}
+    body.drawer-right aside.right{right:0}
+    .mobile-only{display:inline-flex!important}
+  }
+  .mobile-only{display:none}
+
+  /* 超窄屏：让出顶栏空间，避免「详情」按钮被挤出 */
+  @media (max-width:560px){
+    .brand{display:none}
+    header{gap:6px;padding:0 10px}
+    .tab{padding:5px 7px;font-size:11.5px;gap:4px}
+    .tab i{font-size:9px;padding:0 3px}
+    .hbtn{padding:5px 9px;font-size:11.5px}
+    #hint{font-size:10px;gap:7px;padding:5px 10px;max-width:calc(100% - 20px);overflow:hidden}
+    #hint span:nth-child(4){display:none}
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.module.js",
+    "three/addons/": "./vendor/three/addons/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand"><i class="mark"></i><span>teardown viewer</span></div>
+    <div class="tabs" id="tabs"></div>
+    <div class="grow"></div>
+    <button class="hbtn mobile-only" id="mList">结构</button>
+    <button class="hbtn mobile-only" id="mInfo">详情</button>
+    <button class="hbtn" id="btnExplode">全部拆解</button>
+    <button class="hbtn" id="btnReset">装配复位</button>
+  </header>
+
+  <aside class="left">
+    <div class="ph"><span>结构清单</span><b id="listMeta">—</b></div>
+    <div class="list" id="list"></div>
+  </aside>
+
+  <div id="stage">
+    <canvas id="c"></canvas>
+    <div id="labels"></div>
+    <div id="load"><div class="ring"></div><p id="loadTxt">载入模型…</p></div>
+    <div id="hint">
+      <span><b>拖拽</b> 旋转</span><span><b>滚轮</b> 缩放</span>
+      <span><b>单击部件</b> 拆出</span><span><em>双击空白复位</em></span>
+    </div>
+    <div id="tools">
+      <button id="tRotate" class="on" title="自动旋转">
+        <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+      </button>
+      <button id="tLabel" class="on" title="标注">
+        <svg viewBox="0 0 24 24"><path d="M4 7h10l6 5-6 5H4z"/><circle cx="8" cy="12" r="1.4"/></svg>
+      </button>
+      <button id="tExplode" class="mobile-only" title="全部拆解">
+        <svg viewBox="0 0 24 24"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+      </button>
+      <button id="tView" title="切换视角">
+        <svg viewBox="0 0 24 24"><path d="M3 12h18"/><path d="M12 3v18"/><circle cx="12" cy="12" r="9"/></svg>
+      </button>
+    </div>
+
+    <div id="paint">
+      <div class="pt-t">车漆<em id="ptName">—</em></div>
+      <div class="pt-sw" id="ptSw"></div>
+      <div class="pt-fn" id="ptFn"></div>
+    </div>
+  </div>
+
+  <aside class="right">
+    <div class="ph"><span>参数详情</span><b id="infoMeta">整机</b></div>
+    <div class="info" id="info"></div>
+  </aside>
+
+  <footer>
+    <span><kbd>空格</kbd>全部拆解</span><span class="sep"></span>
+    <span><kbd>R</kbd>复位</span><span class="sep"></span>
+    <span><kbd>Esc</kbd>取消选中</span><span class="sep"></span>
+    <span><kbd>1</kbd><kbd>2</kbd>切换车型</span><span class="sep"></span>
+    <span><kbd>P</kbd>换漆<kbd>F</kbd>换工艺</span>
+    <button class="fbtn" id="fExplode">拆解进度 0%</button>
+  </footer>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader }   from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader }  from 'three/addons/loaders/DRACOLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+/* =========================================================
+   0. 工具
+   ========================================================= */
+const QS = new URLSearchParams(location.search);
+const lerp = (a, b, t) => a + (b - a) * t;
+const easeIO = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const clamp01 = v => Math.max(0, Math.min(1, v));
+
+/* =========================================================
+   1. 渲染基础
+   ========================================================= */
+const canvas = document.getElementById('c');
+const stage  = document.getElementById('stage');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.06;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x04060b, 26, 58);
+
+const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 240);
+const HOME_DIR = new THREE.Vector3(0.66, 0.30, 0.72).normalize();
+const homeDir = () => new THREE.Vector3(0.66, camera.aspect < 1 ? 0.19 : 0.30, 0.72).normalize();
+camera.position.copy(HOME_DIR).multiplyScalar(8.6);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.075;
+controls.minDistance = 3.2;
+controls.maxDistance = 52;   // 竖屏拆解机位可达 30+，需放宽上限
+controls.maxPolarAngle = Math.PI * 0.495;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.5;
+controls.target.set(0, 0.62, 0);
+
+/* 环境反射 */
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.62;
+
+/* 灯光 */
+const key = new THREE.DirectionalLight(0xeaf2ff, 3.1);
+key.position.set(6.5, 9, 7); key.castShadow = true;
+key.shadow.mapSize.set(1024, 1024);
+key.shadow.camera.near = 1; key.shadow.camera.far = 30;
+key.shadow.camera.left = -5.5; key.shadow.camera.right = 5.5;
+key.shadow.camera.top = 5.5;   key.shadow.camera.bottom = -5.5;
+key.shadow.bias = -0.0012; key.shadow.normalBias = 0.02;
+
+const rim = new THREE.DirectionalLight(0x9db8d8, 2.2); rim.position.set(-7, 4.5, -6.5);
+const fill = new THREE.DirectionalLight(0xffffff, 0.75); fill.position.set(0, -5, 5.5);
+const accLight = new THREE.PointLight(0x4aa8ff, 6.0, 16, 2); accLight.position.set(-3.6, -1.2, 3.4);
+scene.add(key, rim, fill, accLight);
+
+/* 地面 + 光池 */
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(22, 64),
+  new THREE.ShadowMaterial({ opacity: 0.42 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const grid = new THREE.GridHelper(30, 30, 0x2a3340, 0x141a21);
+grid.material.transparent = true; grid.material.opacity = 0.5;
+grid.position.y = 0.002;
+scene.add(grid);
+
+function radialTex(stops) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+  const ctx = cv.getContext('2d');
+  const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  stops.forEach(([p, c]) => g.addColorStop(p, c));
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 256);
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const pool = new THREE.Mesh(
+  new THREE.PlaneGeometry(15, 15),
+  new THREE.MeshBasicMaterial({
+    map: radialTex([[0, 'rgba(74,168,255,.22)'], [.45, 'rgba(74,168,255,.06)'], [1, 'rgba(74,168,255,0)']]),
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+  })
+);
+pool.rotation.x = -Math.PI / 2;
+pool.position.y = 0.004;
+scene.add(pool);
+
+/* =========================================================
+   2. 菲涅尔边缘光壳层（选中/拆出时高亮，不破坏材质细节）
+   ========================================================= */
+const GLOW_VERT = `
+  varying vec3 vN; varying vec3 vV;
+  void main(){
+    vec4 mv = modelViewMatrix * vec4(position,1.0);
+    vN = normalize(normalMatrix * normal);
+    vV = normalize(-mv.xyz);
+    gl_Position = projectionMatrix * mv;
+  }`;
+const GLOW_FRAG = `
+  uniform vec3 uColor; uniform float uPower; uniform float uIntensity;
+  varying vec3 vN; varying vec3 vV;
+  void main(){
+    float ndv = clamp(dot(normalize(vN), normalize(vV)), 0.0, 1.0);
+    float rim = smoothstep(0.66, 0.02, ndv);
+    float a = pow(rim, uPower * 0.45) * uIntensity;
+    gl_FragColor = vec4(uColor * a, a);
+  }`;
+const ACC = new THREE.Color(0x4aa8ff);
+
+function makeGlowShell(mesh) {
+  const m = new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: ACC.clone() },
+      uPower: { value: 2.0 },
+      uIntensity: { value: 0 },
+    },
+    vertexShader: GLOW_VERT, fragmentShader: GLOW_FRAG,
+    transparent: true,
+    blending: THREE.CustomBlending,
+    blendEquation: THREE.MaxEquation,
+    blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+    depthWrite: false, toneMapped: false, side: THREE.DoubleSide,
+  });
+  const shell = new THREE.Mesh(mesh.geometry, m);
+  shell.scale.setScalar(1.022);
+  shell.userData.isGlow = true;
+  shell.raycast = () => {};
+  shell.renderOrder = 2;
+  mesh.add(shell);
+  return m;
+}
+
+/* =========================================================
+   3. 车型定义
+   ========================================================= */
+const CAR_DEFS = {
+  concept: {
+    key:'concept',
+    name:'Concept Car', cn:'概念跑车',
+    file:'assets/cars/carconcept.glb',
+    draco:false,
+    tag:'Khronos · CarConcept · 整车拆解样例',
+    spec: {
+      '布局':'中置后驱 · 双座',
+      '车身':'碳纤维单体壳',
+      '车长 / 宽 / 高':'4400 / 1950 / 1180 mm',
+      '整备质量':'1280 kg',
+      '动力单元':'4.0L V8 双涡轮（设计值）',
+      '最大功率':'650 hp',
+      '0–100 km/h':'3.2 s',
+      '极速':'310 km/h',
+    },
+    intro:'Khronos 官方的概念跑车样例，按真实整车结构分件建模：车身覆盖件、左右车门（含内饰板与玻璃）、座舱内饰、转向系统、踏板机构、动力总成、四组轮组与车轴，逐件命名、可单独拆出。数值为设计示意，不代表任何量产车型。',
+  },
+  ferrari: {
+    key:'ferrari',
+    name:'Ferrari 458 Italia', cn:'法拉利 458',
+    file:'assets/cars/ferrari.glb',
+    draco:true, yaw: Math.PI,
+    tag:'three.js 官方示例 · 51 节点',
+    spec: {
+      '引擎':'4.5L V8 自然吸气（F136 F）',
+      '最大功率':'570 CV @ 9000 rpm',
+      '最大扭矩':'540 N·m @ 6000 rpm',
+      '变速箱':'7 速双离合 F1',
+      '布局':'中置后驱',
+      '0–100 km/h':'3.4 s',
+      '极速':'325 km/h',
+      '干重':'1380 kg',
+      '尺寸':'4527 × 1937 × 1213 mm',
+    },
+    intro:'three.js 官方汽车示例模型。节点按材质而非零件分组：车身、玻璃、灯具、碳纤维、皮革内饰等 20 个材质组，外加四组独立轮组（轮辋 / 轮胎 / 刹车 / 中心盖 / 螺帽）与一组方向盘总成，因此拆解粒度是「总成级」而非「零件级」。',
+  },
+  /* ---- Kenney Car Kit（CC0）低多边形系列：部件命名干净，按总成拆解 ---- */
+  ksedan: {
+    key:'ksedan', family:'kenney',
+    name:'Sports Sedan', cn:'运动轿车',
+    file:'assets/cars/kenney/sedan-sports.glb',
+    draco:false, yaw: Math.PI / 2,
+    tag:'Kenney Car Kit · CC0 · 低多边形 6 部件',
+    spec: {
+      '布局':'前置后驱 · 四门',
+      '车身':'钢铝混合承载式',
+      '车长 / 宽 / 高':'4700 / 1850 / 1400 mm',
+      '整备质量':'1520 kg',
+      '动力单元':'2.0L 直列四缸涡轮增压',
+      '最大功率':'245 hp',
+      '0–100 km/h':'6.2 s',
+      '极速':'250 km/h',
+    },
+    intro:'低多边形套件中的运动轿车，尾部带独立尾翼。模型按总成而非零件分组：车身、尾翼与四只车轮各自独立，适合演示「整车 → 总成」一级的拆解层次。参数为同类车型的示意值。',
+  },
+  ksuv: {
+    key:'ksuv', family:'kenney',
+    name:'Luxury SUV', cn:'豪华 SUV',
+    file:'assets/cars/kenney/suv-luxury.glb',
+    draco:false, yaw: Math.PI / 2,
+    tag:'Kenney Car Kit · CC0 · 低多边形 5 部件',
+    spec: {
+      '布局':'前置四驱 · 五座',
+      '车身':'承载式 · 高刚性框架',
+      '车长 / 宽 / 高':'4950 / 2000 / 1750 mm',
+      '整备质量':'2150 kg',
+      '动力单元':'3.0L V6 涡轮增压',
+      '最大功率':'340 hp',
+      '0–100 km/h':'5.9 s',
+      '离地间隙':'210 mm',
+    },
+    intro:'大型豪华 SUV，离地间隙与车身高度明显高于轿车，对比切换时可以直观看到两种车身比例的差异。参数为同类车型的示意值。',
+  },
+  kfire: {
+    key:'kfire', family:'kenney',
+    name:'Fire Truck', cn:'消防车',
+    file:'assets/cars/kenney/firetruck.glb',
+    draco:false, yaw: Math.PI / 2,
+    tag:'Kenney Car Kit · CC0 · 低多边形 6 部件',
+    spec: {
+      '车型':'城市主战消防车',
+      '水罐容积':'3000 L',
+      '水泵流量':'3000 L/min',
+      '乘员':'6 人（含指挥员）',
+      '车长 / 宽 / 高':'7800 / 2500 / 3400 mm',
+      '整车质量':'12000 kg',
+      '最大功率':'320 hp',
+    },
+    intro:'消防车属于专用作业车，车身之外还有独立可拆的前保险杠与格栅总成——格栅位于车头，是整车进气与灯具的承载件。参数为同类车型的示意值。',
+  },
+  kamb: {
+    key:'kamb', family:'kenney',
+    name:'Ambulance', cn:'救护车',
+    file:'assets/cars/kenney/ambulance.glb',
+    draco:false, yaw: Math.PI / 2,
+    tag:'Kenney Car Kit · CC0 · 低多边形 7 部件',
+    spec: {
+      '车型':'B 型救护车',
+      '医疗舱':'监护型 · 可站立操作',
+      '车载设备':'呼吸机 / 除颤仪 / 担架 / 供氧',
+      '乘员':'5 人（含 2 名医护）',
+      '车长 / 宽 / 高':'5600 / 2100 / 2600 mm',
+      '整车质量':'3200 kg',
+      '最大功率':'180 hp',
+    },
+    intro:'救护车是这批模型里唯一带独立左右车门的车型，可以单独把车门总成从车身上拆出来，观察厢式车身的侧开口结构。参数为同类车型的示意值。',
+  },
+  ktaxi: {
+    key:'ktaxi', family:'kenney',
+    name:'Taxi', cn:'出租车',
+    file:'assets/cars/kenney/taxi.glb',
+    draco:false, yaw: Math.PI / 2,
+    tag:'Kenney Car Kit · CC0 · 低多边形 5 部件',
+    spec: {
+      '布局':'前置前驱 · 四门',
+      '车身':'钢制承载式',
+      '车长 / 宽 / 高':'4700 / 1850 / 1470 mm',
+      '整备质量':'1480 kg',
+      '动力单元':'1.8L 混动',
+      '综合油耗':'4.6 L/100km',
+      '营运配置':'顶灯 / 计价器 / 副驾隔离',
+    },
+    intro:'营运版轿车，结构与运动轿车同平台，但车身比例更常规。同平台不同用途的两款车放在一起，可以比较覆盖件与轮距的差异。参数为同类车型的示意值。',
+  },
+};
+
+/* 总成分组 */
+const GROUP_META = {
+  body:    { cn:'车身覆盖件', en:'Body Shell',    dist:0.34, desc:'承载式车身外覆盖件与底板，决定整车外形与风阻。' },
+  door:    { cn:'车门总成',   en:'Door Assembly', dist:0.52, desc:'左右车门内外板、车窗玻璃、密封条、把手与后视镜。' },
+  cabin:   { cn:'座舱内饰',   en:'Cabin Trim',    dist:0.28, desc:'座椅总成、地毯、仪表台、立柱内饰与后舱隔板。' },
+  steer:   { cn:'转向系统',   en:'Steering',      dist:0.38, desc:'方向盘（轮辐 / 握把 / 徽标）、转向柱与护罩。' },
+  pedal:   { cn:'踏板机构',   en:'Pedal Box',     dist:0.36, desc:'油门与制动踏板及其摆臂，踏板比决定制动脚感。' },
+  engine:  { cn:'动力总成',   en:'Powertrain',    dist:0.52, desc:'发动机本体与附件，中置布局下位于座舱之后。' },
+  wheel:   { cn:'行走与制动', en:'Wheel & Brake', dist:0.50, desc:'轮辋、轮胎、刹车盘、刹车片与中心盖。' },
+  axle:    { cn:'车轴总成',   en:'Axles',         dist:0.20, desc:'前后车轴与传动半轴，连接动力总成与车轮。' },
+  glass:   { cn:'玻璃与灯具', en:'Glass & Lights',dist:0.34, desc:'前后风挡、侧窗、灯具与格栅，光学件的造型语言最集中。' },
+  trim:    { cn:'外部饰件',   en:'Exterior Trim', dist:0.30, desc:'镀铬件、碳纤维饰板、金属件与雨刷等外装零件。' },
+  leather: { cn:'内饰皮革',   en:'Interior',      dist:0.26, desc:'皮革包覆、地毯与内饰件，决定座舱质感。' },
+  wheelset:{ cn:'轮组',       en:'Wheel Set',     dist:0.46, desc:'独立轮组，可整组拆出，也可单独拆到螺帽一级。' },
+  steerW:  { cn:'方向盘总成', en:'Steering Wheel',dist:0.40, desc:'碳纤维盘体、皮革握把与中央饰盖。' },
+};
+
+/* 各总成的拆解方向偏置：让爆炸图有层次而不是纯放射 */
+const GROUP_BIAS = {
+  body:    new THREE.Vector3(0, 0.80, 0),
+  door:    new THREE.Vector3(0, 0.26, 0),
+  cabin:   new THREE.Vector3(0, -0.85, 0.16),
+  steer:   new THREE.Vector3(0, 0.28, -0.9),
+  pedal:   new THREE.Vector3(0, -0.28, -0.9),
+  engine:  new THREE.Vector3(0, -0.22, -1.15),
+  axle:    new THREE.Vector3(0, -1.3, 0),
+  glass:   new THREE.Vector3(0, 1.0, 0),
+  trim:    new THREE.Vector3(0, 1.05, 0),
+  leather: new THREE.Vector3(0, -1.0, 0.22),
+  steerW:  new THREE.Vector3(0, 0.8, -0.55),
+};
+
+/* 中文名映射 */
+const CN_RULES = [
+  [/^Engine$/, '发动机总成'],
+  [/^Axles$/, '前后车轴'],
+  [/^License Plate$/, '牌照板'],
+  [/^BodyUnderside$/, '底盘护板'],
+  [/WindshieldWipersBase/, '雨刷基座'],
+  [/WindshieldWipers/, '雨刷'],
+  [/WindshieldGasket/, '前挡密封条'],
+  [/Windshield$/, '前挡风玻璃'],
+  [/Rearwindow/, '后窗玻璃'],
+  [/WindowsRearSides/, '后侧窗玻璃'],
+  [/TaillightsPanels/, '尾灯饰板'],
+  [/Taillights/, '尾灯组'],
+  [/TurnsignalsRear/, '后转向灯'],
+  [/Headlights/, '前大灯组'],
+  [/RoofPanel/, '车顶面板'],
+  [/HoodTopgrill/, '引擎盖进气口'],
+  [/HoodInterior0?1|HoodInterior0?2/, '引擎盖内衬'],
+  [/HoodUnder/, '引擎盖下护板'],
+  [/Hood$/, '引擎盖'],
+  [/RearHatch/, '后舱盖'],
+  [/RearPanels/, '尾部面板'],
+  [/PanelsColor/, '车身面板'],
+  [/R?Pillars?$/, '车身立柱'],
+  [/DoorRMirrorColor|DoorLMirrorColor/, '后视镜外壳'],
+  [/DoorRMirror$|DoorLMirror$/, '后视镜'],
+  [/DoorRHandle|DoorLHandle/, '车门把手'],
+  [/DoorRWindowGasket|DoorLWindowGasket/, '车窗密封条'],
+  [/DoorRWindow$|DoorLWindow$/, '车门玻璃'],
+  [/DoorRColor|DoorLColor/, '车门外板'],
+  [/InteriorDoor/, '车门内饰板'],
+  [/InteriorCage/, '座舱框架'],
+  [/InteriorDashMid/, '中控台'],
+  [/InteriorDashSides/, '仪表台侧板'],
+  [/InteriorFloormats/, '脚垫'],
+  [/InteriorFloor/, '地板'],
+  [/InteriorMid/, '座舱隔板'],
+  [/InteriorPillar/, '立柱内饰'],
+  [/PedalAccelArm/, '油门踏板臂'],
+  [/PedalAccel$/, '油门踏板'],
+  [/PedalBrakeArm/, '制动踏板臂'],
+  [/PedalBrake$/, '制动踏板'],
+  [/SeatsFrame/, '座椅骨架'],
+  [/SeatsColor/, '座椅'],
+  [/SteeringEmblem/, '方向盘徽标'],
+  [/SteeringCylinder/, '转向柱'],
+  [/SteeringBase/, '转向基座'],
+  [/SteeringDashColumn/, '转向柱护罩'],
+  [/SteeringDash$/, '转向柱仪表'],
+  [/SteeringWheel0?1|SteeringWheel0?2|SteeringWheel0?3|SteeringWheel0?4/, '方向盘轮辐'],
+  [/SteeringHandleL/, '方向盘握把（左）'],
+  [/SteeringHandleR/, '方向盘握把（右）'],
+  [/InteriorRearPanels/, '后舱内饰板'],
+  [/WheelFrontLRim|WheelRearLRim/, null],   // 交由方位规则
+];
+const WHEEL_RULE = /^Wheel(Front|Rear)([LR])(Rim|BrakePad|BrakeDisc)$/;
+const POS = { L:'左', R:'右', Front:'前', Rear:'后' };
+const WHEEL_PART = { Rim:'轮毂', BrakePad:'刹车片', BrakeDisc:'刹车盘' };
+
+/* Kenney 节点名 → 中文 */
+const KENNEY_CN = {
+  body:'车身总成',
+  'wheel-front-left':'左前车轮', 'wheel-front-right':'右前车轮',
+  'wheel-back-left':'左后车轮',  'wheel-back-right':'右后车轮',
+  'door-left':'左车门', 'door-right':'右车门', door:'尾门',
+  grill:'前保险杠格栅', spoiler:'尾翼', trash:'垃圾箱体', arm:'举升臂',
+  ladder:'云梯', character:'驾驶员', box:'货箱',
+};
+
+function cnName(raw, carKey) {
+  if (isKenney(carKey)) return KENNEY_CN[raw] || KENNEY_CN[String(raw).toLowerCase()] || raw;
+  if (!raw || raw === '?') return carKey === 'concept' ? '轮胎' : '未命名件';
+  const wm = raw.match(/^wheel_(fl|fr|rl|rr)\.(.+)$/);
+  if (wm) {
+    const FBPOS = { f:'前', r:'后' }, LRPOS = { l:'左', r:'右' };
+    return LRPOS[wm[1][1]] + FBPOS[wm[1][0]] + cnName(wm[2], carKey);
+  }
+  const w = raw.match(WHEEL_RULE);
+  if (w) return `${POS[w[2]]}${POS[w[1]]}${WHEEL_PART[w[3]]}`;
+  for (const [re, cn] of CN_RULES) {
+    if (cn && re.test(raw)) return cn;
+  }
+  // Ferrari 材质组
+  const F = {
+    body:'车身', glass:'玻璃件', brakes:'制动卡钳', chrome:'镀铬件',
+    'carbon fibre':'碳纤维覆件', carbon_fibre_trim:'碳纤维饰条', leather:'皮革内饰',
+    carpet:'地毯', trim:'外部饰条', lights:'前灯组', lights_red:'尾灯',
+    leds:'LED 灯带', grills:'进气格栅', wipers:'雨刷', metal:'金属件',
+    plastic_gray:'灰色塑料件', interior_dark:'深色内饰件', interior_light:'内饰照明',
+    blue:'蓝色涂装件', yellow_trim:'黄色饰条',
+    wheel:'轮辋', tire:'轮胎', brake:'制动卡钳', centre:'中心盖', nuts:'轮毂螺帽',
+    'steering_carbon':'碳纤维盘体', steering_centre:'中央饰盖', steering_column:'转向柱',
+    steering_leather:'皮革握把', steering_metal:'金属饰片', steering_red_lights:'红色指示',
+    steering_trim:'盘体饰条',
+  };
+  return F[raw] || raw;
+}
+
+/* =========================================================
+   4. 状态
+   ========================================================= */
+const CARS = {};            // key -> { def, group, parts[], box, maxDim, loaded }
+let current = null;         // 当前车型 key
+let selected = null;
+let hovered = null;
+let showLabels = true;
+let introT = 0;
+let autoDist = 8.6;
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+
+const NEAR_R = 10.8, FAR_R = 18.6;
+
+function frameDist(ratio) {
+  const half = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  const needH = 3.3 + ratio * 4.0;      // 需要的可视高度
+  const needW = 5.4 + ratio * 6.2;      // 需要的可视宽度（车长 + 余量）
+  const dH = needH / (2 * half);
+  const dW = needW / (2 * half * camera.aspect);
+  return Math.max(lerp(NEAR_R, FAR_R, ratio), dH, dW);
+}
+
+/* =========================================================
+   5. 加载与装配
+   ========================================================= */
+const draco = new DRACOLoader();
+draco.setDecoderPath('./vendor/three/addons/libs/draco/gltf/');
+const loader = new GLTFLoader();
+loader.setDRACOLoader(draco);
+
+function classifyConcept(name, pn = '') {
+  // 轮胎等无名节点挂在轮组节点下，先看父节点
+  if (/^Axles/.test(pn) || /^Axles/.test(name))            return 'axle';
+  if (/^Wheel/.test(pn) || /^Wheel/.test(name))            return 'wheel';
+  if (/^BodyDoor|^InteriorDoor/.test(pn + name))           return 'door';
+  if (/^InteriorSteering/.test(name))                      return 'steer';
+  if (/^InteriorPedal/.test(name))                         return 'pedal';
+  if (/^Engine/.test(name) || /^Engine/.test(pn))          return 'engine';
+  if (/^Interior/.test(name))                              return 'cabin';
+  if (/^License Plate/.test(name))                         return 'body';
+  return 'body';
+}
+/* Kenney 系列：节点名直接就是部件语义（body / wheel-front-left / door-left / grill …） */
+function classifyKenney(name) {
+  const n = String(name || '').toLowerCase();
+  if (/^wheel/.test(n))                 return 'wheel';
+  if (/^door/.test(n))                  return 'door';
+  if (/^grill|^spoiler|^bumper/.test(n)) return 'trim';
+  if (/^trash|^arm|^ladder/.test(n))    return 'cabin';
+  if (/^character/.test(n))             return 'cabin';
+  return 'body';
+}
+function isKenney(key) { return !!(CAR_DEFS[key] && CAR_DEFS[key].family === 'kenney'); }
+
+function classifyFerrari(parentName, name) {
+  if (parentName && /^wheel_(fl|fr|rl|rr)$/.test(parentName)) return 'wheel';
+  if (parentName === 'steering_wheel') return 'steerW';
+  if (name === 'glass')     return 'glass';
+  if (/^lights/.test(name) || name === 'leds' || name === 'grills' || name === 'wipers') return 'glass';
+  if (name === 'leather' || name === 'carpet' || /^interior/.test(name)) return 'leather';
+  if (name === 'brakes')    return 'wheel';
+  return 'trim';
+}
+
+function loadCar(key) {
+  const def = CAR_DEFS[key];
+  return new Promise(resolve => {
+    loader.load(def.file, gltf => {
+      const src = gltf.scene;
+      src.updateMatrixWorld(true);
+
+      const group = new THREE.Group();          // 零件扁平化容器
+      const meshes = [];
+      src.traverse(o => { if (o.isMesh) meshes.push(o); });
+
+      // 车漆材质升级（必须在部件注册前完成，材质是共享的）
+      const paint = collectPaint(meshes, key);
+
+      // 把每个 mesh 从原层级摘出，保留世界变换
+      const worldMats = meshes.map(m => m.matrixWorld.clone());
+      const parentNames = meshes.map(m => (m.parent && m.parent.name) || '');
+      meshes.forEach((m, i) => {
+        group.add(m);
+        worldMats[i].decompose(m.position, m.quaternion, m.scale);
+      });
+
+      // 包围盒
+      const box = new THREE.Box3().setFromObject(group);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+
+      // 归一化：长度 → 4.6 单位，底面贴 y=0，水平居中
+      const s = 4.6 / maxDim;
+      group.scale.setScalar(s);
+      group.position.set(-center.x * s, -box.min.y * s + 0.004, -center.z * s);
+      if (def.yaw) group.rotation.y = def.yaw;
+      scene.add(group);
+      group.updateMatrixWorld(true);
+
+      // 车心（group 局部坐标，仍是原始量纲，用于计算放射方向）
+      const carCenter = new THREE.Vector3(0, size.y * 0.45, 0);
+
+      const parts = [];
+      let unnamed = 0;
+      meshes.forEach((m, i) => {
+        m.castShadow = true;
+        m.receiveShadow = true;
+        const matList = Array.isArray(m.material) ? m.material.slice() : [m.material];
+        matList.forEach(mm => { if (mm && 'envMapIntensity' in mm) mm.envMapIntensity = 0.75; });
+
+        const pn = parentNames[i];
+        let raw = m.name || '?';
+        if (key === 'ferrari' && /^wheel_(fl|fr|rl|rr)$/.test(pn)) raw = `${pn}.${raw}`;
+        const gid = key === 'ferrari' ? classifyFerrari(pn, raw)
+                  : isKenney(key) ? classifyKenney(raw)
+                  : classifyConcept(raw, pn);
+
+        // 拆解方向：部件包围盒中心相对车心的放射方向（group 局部空间）
+        const wb = new THREE.Box3().setFromObject(m);
+        const wc = group.worldToLocal(wb.getCenter(new THREE.Vector3()));
+        const radial = wc.clone().sub(carCenter);
+        if (radial.lengthSq() < 1e-6) radial.set(0, 1, 0.0001);
+        radial.normalize();
+        let dir;
+        if (gid === 'wheel' || gid === 'axle') {
+          // 行走系统沿车轴左右分离
+          const sx = Math.sign(radial.x) || 1;
+          dir = new THREE.Vector3(sx, gid === 'axle' ? -1.15 : 0.1, 0).normalize();
+        } else {
+          const b = GROUP_BIAS[gid];
+          dir = b ? radial.clone().add(b).normalize() : radial.clone();
+        }
+
+        const mats = [];
+        matList.forEach(mm => {
+          if (!mm || !mm.emissive) return;
+          mats.push({ m: mm, base: mm.emissive.clone(), inten: mm.emissiveIntensity ?? 1 });
+        });
+
+        let cn = cnName(raw, key);
+        if (raw === '?' || /^mesh_\d+/.test(raw)) {
+          const wm = pn.match(/^Wheel(Front|Rear)([LR])$/);
+          cn = wm ? (POS[wm[2]] + POS[wm[1]] + '轮胎') : cnName(pn, key);
+          unnamed++;
+        }
+
+        const part = {
+          idx: parts.length,
+          id: key + '#' + parts.length,
+          raw, rawShow: /^mesh_\d+/.test(raw) ? pn : (m.name || '?'), cn, gid,
+          mesh: m,
+          base: m.position.clone(),
+          dir,
+          t: 0, target: 0,
+          glow: 0, glowTarget: 0,
+          exploded: false,
+          mats,
+          glowMat: makeGlowShell(m),
+        };
+        m.userData.part = part;
+        parts.push(part);
+      });
+
+      // 轮组材质校正（必须在 envMapIntensity 统一设置之后）
+      tuneWheels(key, meshes);
+
+      // 同名部件加序号，避免清单里出现三个「左前轮胎」
+      const seen = new Map();
+      parts.forEach(p => {
+        const n = (seen.get(p.cn) || 0) + 1;
+        seen.set(p.cn, n);
+        if (n > 1) p.cn = p.cn + ' ' + n;
+      });
+
+      CARS[key] = { def, group, parts, box, size, center, maxDim, carCenter, s, paint, loaded:true };
+      group.visible = false;
+      resolve(CARS[key]);
+    },
+    xhr => {
+      if (xhr.lengthComputable && key === 'concept') {
+        document.getElementById('loadTxt').textContent = '载入 Concept Car… ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
+      }
+    },
+    err => {
+      document.getElementById('loadTxt').textContent = '模型加载失败：' + (err.message || err);
+      console.error('[load]', key, err);
+      resolve(null);
+    });
+  });
+}
+
+/* =========================================================
+   6. 拆解 / 高亮
+   ========================================================= */
+const MAXDIM_REF = 4.6;
+
+function explodeAmount(p) {
+  const g = GROUP_META[p.gid] || { dist: 0.32 };
+  const car = CARS[current];
+  return g.dist * (car ? car.maxDim : MAXDIM_REF);
+}
+
+function updateGlow() {
+  const car = CARS[current];
+  if (!car) return;
+  const n = car.parts.filter(p => p.exploded).length;
+  const base = n > 0 ? (n <= 2 ? 0.55 : 0.30) : 0;
+  car.parts.forEach(p => {
+    p.glowTarget = (selected === p || hovered === p) ? 1 : (p.exploded ? base : 0);
+  });
+}
+
+function select(p) {
+  selected = p;
+  updateGlow();
+  renderInfo();
+  syncList();
+  revealInList(p);
+}
+
+/* 从 3D 里点中的部件，左侧清单平滑跟到可见位置 */
+function revealInList(p) {
+  if (!p) return;
+  const el = listEl.querySelector(`.it[data-id="${p.id}"]`);
+  if (!el) return;
+  const grp = el.closest('details');
+  if (grp && !grp.open) grp.open = true;
+  el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function setExploded(p, v) {
+  if (p.exploded === v) return;
+  p.exploded = v;
+  p.target = v ? 1 : 0;
+  updateGlow();
+  syncList();
+  if (!selected || selected === p) renderInfo();
+  updateMeta();
+}
+
+function togglePart(p) { setExploded(p, !p.exploded); }
+
+function setGroup(gid, v) {
+  const car = CARS[current];
+  if (!car) return;
+  car.parts.forEach(p => { if (p.gid === gid) { p.exploded = v; p.target = v ? 1 : 0; } });
+  updateGlow(); syncList(); updateMeta();
+}
+
+function explodeAll(v) {
+  const car = CARS[current];
+  if (!car) return;
+  car.parts.forEach(p => { p.exploded = v; p.target = v ? 1 : 0; });
+  hovered = null;
+  updateGlow(); syncList(); updateMeta();
+  if (!selected) renderInfo();
+  // 全量拆解时直接把机位送到对应景别，避免窄屏被裁切
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  camGoal = { pos: controls.target.clone().addScaledVector(dir, frameDist(v ? 1 : 0)), on: true };
+  const btn = document.getElementById('btnExplode');
+  btn.textContent = v ? '装配复位' : '全部拆解';
+}
+
+function resetAll() {
+  const car = CARS[current];
+  if (!car) return;
+  car.parts.forEach(p => { p.exploded = false; p.target = 0; });
+  selected = null; hovered = null;
+  updateGlow(); syncList(); renderInfo(); updateMeta();
+  document.getElementById('btnExplode').textContent = '全部拆解';
+  flyHome();
+}
+
+function flyHome() {
+  const d = frameDist(0);
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  camGoal = { pos: controls.target.clone().addScaledVector(dir, d), on: true };
+}
+
+/* =========================================================
+   7. 左侧清单
+   ========================================================= */
+const listEl = document.getElementById('list');
+
+function buildList() {
+  const car = CARS[current];
+  if (!car) return;
+  const groups = new Map();
+  car.parts.forEach(p => {
+    if (!groups.has(p.gid)) groups.set(p.gid, []);
+    groups.get(p.gid).push(p);
+  });
+
+  let html = '';
+  for (const [gid, arr] of groups) {
+    const meta = GROUP_META[gid] || { cn:gid, en:'' };
+    html += `<details class="grp" data-g="${gid}" ${gid === 'engine' || gid === 'wheel' ? 'open' : ''}>
+      <summary>
+        <span class="dot"></span>
+        <span class="nm">${meta.cn}</span>
+        <span class="ct">${arr.length}</span>
+        <button class="go" data-g="${gid}">拆出</button>
+      </summary>
+      <div class="items">${arr.map((p, i) =>
+        `<div class="it" data-id="${p.id}" style="--i:${Math.min(i, 10)}"><span class="n">${String(p.idx + 1).padStart(2, '0')}</span>
+         <span class="t">${p.cn}${p.cn !== p.rawShow ? `<em>${p.rawShow}</em>` : ''}</span>
+         <span class="st"></span></div>`).join('')}</div>
+    </details>`;
+  }
+  listEl.innerHTML = html;
+  document.getElementById('listMeta').textContent = `${car.parts.length} 个部件 · ${groups.size} 个总成`;
+  syncList();
+}
+
+function syncList() {
+  const car = CARS[current];
+  if (!car) return;
+  listEl.querySelectorAll('.it').forEach(el => {
+    const p = car.parts.find(x => x.id === el.dataset.id);
+    if (!p) return;
+    el.classList.toggle('ex', p.exploded);
+    el.classList.toggle('sel', selected === p);
+  });
+  listEl.querySelectorAll('.grp').forEach(g => {
+    const any = car.parts.some(p => p.gid === g.dataset.g && p.exploded);
+    g.classList.toggle('has', any);
+    const btn = g.querySelector('.go');
+    if (btn) btn.textContent = any ? '装回' : '拆出';
+  });
+}
+
+listEl.addEventListener('click', e => {
+  const goBtn = e.target.closest('.go');
+  if (goBtn) {
+    e.preventDefault(); e.stopPropagation();
+    const gid = goBtn.dataset.g;
+    const car = CARS[current];
+    const any = car.parts.some(p => p.gid === gid && p.exploded);
+    setGroup(gid, !any);
+    return;
+  }
+  const item = e.target.closest('.it');
+  if (item) {
+    const p = CARS[current].parts.find(x => x.id === item.dataset.id);
+    if (p) { select(p); togglePart(p); }
+  }
+});
+
+/* =========================================================
+   8. 右侧详情
+   ========================================================= */
+const infoEl = document.getElementById('info');
+
+function renderInfo() {
+  const car = CARS[current];
+  if (!car) return;
+  const def = car.def;
+
+  if (!selected) {
+    const total = car.parts.length;
+    const ex = car.parts.filter(p => p.exploded).length;
+    const specRows = Object.entries(def.spec)
+      .map(([k, v]) => `<div class="row"><span>${k}</span><b>${v}</b></div>`).join('');
+    infoEl.innerHTML = `
+      <div class="eyebrow">整机规格</div>
+      <h1 class="h1">${def.name}</h1>
+      <div class="sub">${def.tag}</div>
+      <p class="desc">${def.intro}</p>
+      <div class="rows">${specRows}</div>
+      <div class="sect">拆解进度</div>
+      <div class="row" style="border:none;padding:0 0 2px"><span>已拆出部件</span><b class="hl">${ex} / ${total}</b></div>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${total ? ex / total * 100 : 0}%"></div></div>
+      <div class="acts">
+        <button class="act primary" id="aAll">${ex ? '装配复位' : '全部拆解'}</button>
+        <button class="act" id="aGroup">按总成拆</button>
+      </div>`;
+    document.getElementById('aAll').onclick = () => {
+      const any = car.parts.some(p => p.exploded);
+      explodeAll(!any);
+      renderInfo();
+    };
+    document.getElementById('aGroup').onclick = () => {
+      car.parts.forEach(p => { p.exploded = true; p.target = 1; });
+      updateGlow(); syncList(); updateMeta(); renderInfo();
+      document.getElementById('btnExplode').textContent = '装配复位';
+    };
+    const meta = document.getElementById('infoMeta');
+    if (meta) meta.textContent = '整机';
+    return;
+  }
+
+  const p = selected;
+  const meta = GROUP_META[p.gid] || { cn:p.gid, desc:'' };
+  const sib = car.parts.filter(x => x.gid === p.gid).length;
+  infoEl.innerHTML = `
+    <div class="eyebrow">部件详情</div>
+    <h1 class="h1">${p.cn}</h1>
+    <div class="sub">${p.raw === p.cn ? '' : p.raw + ' · '}${meta.en || ''}</div>
+    <div class="badge"><i></i>${meta.cn} · ${String(p.idx + 1).padStart(2, '0')} / ${car.parts.length}</div>
+    <p class="desc">${meta.desc || ''}</p>
+    <div class="rows">
+      <div class="row"><span>所属总成</span><b>${meta.cn}</b></div>
+      <div class="row"><span>同组部件</span><b>${sib} 件</b></div>
+      <div class="row"><span>拆解方向</span><b>${p.exploded ? '已拆出' : '装配位'}</b></div>
+      <div class="row"><span>节点名</span><b style="font-size:11px">${p.raw}</b></div>
+    </div>
+    <div class="sect">操作</div>
+    <div class="acts">
+      <button class="act primary" id="aToggle">${p.exploded ? '装回装配位' : '拆出此部件'}</button>
+      <button class="act" id="aGrp">拆出整组</button>
+    </div>`;
+  document.getElementById('aToggle').onclick = () => { togglePart(p); renderInfo(); };
+  document.getElementById('aGrp').onclick = () => {
+    const any = car.parts.some(x => x.gid === p.gid && !x.exploded);
+    setGroup(p.gid, any);
+    renderInfo();
+  };
+  const m2 = document.getElementById('infoMeta');
+  if (m2) m2.textContent = meta.cn;
+}
+
+function updateMeta() {
+  const car = CARS[current];
+  if (!car) return;
+  const total = car.parts.length;
+  const ex = car.parts.filter(p => p.exploded).length;
+  const pct = total ? Math.round(ex / total * 100) : 0;
+  const fe = document.getElementById('fExplode');
+  if (fe) {
+    const txt = `拆解进度 ${pct}%`;
+    if (fe.textContent !== txt) {
+      fe.textContent = txt;
+      fe.classList.remove('bump');
+      void fe.offsetWidth;          // 强制回流，让动画可以重播
+      fe.classList.add('bump');
+    }
+  }
+  const lm = document.getElementById('listMeta');
+  if (lm) {
+    const groups = new Set(car.parts.map(p => p.gid)).size;
+    lm.textContent = `${total} 个部件 · ${groups} 个总成`;
+  }
+}
+
+/* =========================================================
+   8.5 车漆 / 涂装
+   ========================================================= */
+const PAINTS = [
+  { id:'techblue', cn:'星耀蓝', main:'#1d4ed8', sub:'#0c2554' },
+  { id:'cyan',     cn:'极光青', main:'#0e9ab5', sub:'#0a4c5e' },
+  { id:'obsidian', cn:'曜石黑', main:'#13181f', sub:'#202834' },
+  { id:'titan',    cn:'钛银灰', main:'#a7b1be', sub:'#767f8c' },
+  { id:'pearl',    cn:'珠光白', main:'#e7ecf3', sub:'#bfc7d3' },
+  { id:'jungle',   cn:'丛林绿', main:'#3d5c36', sub:'#22351d' },
+  { id:'amber',    cn:'琥珀金', main:'#b58436', sub:'#6a4a18' },
+  { id:'carmine',  cn:'烈焰红', main:'#c81f2c', sub:'#6b0f18' },
+  { id:'stock',    cn:'原厂色', stock:true },
+];
+const FINISHES = [
+  { id:'metal', cn:'金属漆', metalness:0.88, roughness:0.30, clearcoat:1.00, ccRough:0.05, env:1.15 },
+  { id:'pearl', cn:'珠光漆', metalness:0.60, roughness:0.19, clearcoat:1.00, ccRough:0.02, env:1.42 },
+  { id:'matte', cn:'哑光漆', metalness:0.28, roughness:0.80, clearcoat:0.16, ccRough:0.70, env:0.62 },
+  { id:'candy', cn:'糖果漆', metalness:0.94, roughness:0.09, clearcoat:1.00, ccRough:0.01, env:1.62 },
+];
+/* Kenney 系列默认保留原厂涂装（消防车红 / 出租车黄等），不强行套金属蓝 */
+const PAINT_DEFAULT = {
+  concept:'techblue', ferrari:'techblue',
+  ksedan:'stock', ksuv:'stock', kfire:'stock', kamb:'stock', ktaxi:'stock',
+};
+
+/* 轮组材质校正：原模型 Rim2 是近乎镜面的镀铬（roughness 0.05），轮圈正对高光时
+   整只轮子会反射成一片「白盘子」，辐条层次全丢；Tireside / Rim2 又是默认白底，
+   贴图一旦没吃上就直接白成圆盘。这里把轮圈做成拉丝金属（提高粗糙度 + 收敛反射），
+   并压一层底色兜底，保证任何角度、任何贴图状态下都是深色轮圈 + 黑胎。 */
+const WHEEL_TUNE = {
+  concept: {
+    /* Rim1 = 多辐轮辐（7474 verts），Rim2 = 轮圈外唇 / 中心盖 */
+    rim1:     { color: 0x2b323c, roughness: 0.27, metalness: 0.92, env: 1.15, killEmissive: true },
+    rim2:     { color: 0x9ba7b8, roughness: 0.17, metalness: 1.00, env: 1.30, killEmissive: true },
+    tireside: { color: 0x2b2f36, roughness: 0.72, env: 0.30 },
+    disc:     { color: 0x3a4048, roughness: 0.52, env: 0.38 },
+  },
+};
+/* ⚠ 关键：GLB 里 Rim1 / Rim2 带 emissiveFactor=[1,1,1] + 一张「灯光遮罩」emissiveTexture，
+   UV 落在遮罩的亮区 → 轮圈变成自发光白盘，改 baseColor / 粗糙度完全无效（自发光是叠加的）。
+   而且主循环每帧 `emissive.copy(m.base)`，只改材质不改基线会被立刻写回白色，
+   所以必须同时把部件高亮基线（part.mats[].base / inten）也归零。 */
+function tuneWheels(key, meshes) {
+  const map = WHEEL_TUNE[key];
+  if (!map) return;
+  const tuned = new Set();
+  const killed = new Set();
+  meshes.forEach(m => {
+    (Array.isArray(m.material) ? m.material : [m.material]).forEach(mm => {
+      if (!mm || tuned.has(mm) || !mm.color) return;
+      const t = map[String(mm.name || '').trim().toLowerCase()];
+      if (!t) return;
+      if (t.color != null) mm.color.set(t.color);
+      if (t.metalness != null && 'metalness' in mm) mm.metalness = t.metalness;
+      if (t.roughness != null && 'roughness' in mm) mm.roughness = t.roughness;
+      if (t.env != null && 'envMapIntensity' in mm) mm.envMapIntensity = t.env;
+      if ('clearcoat' in mm) mm.clearcoat = 0;
+      if (t.killEmissive && mm.emissive) {
+        mm.emissive.setRGB(0, 0, 0);
+        if (mm.emissiveMap) mm.emissiveMap = null;
+        killed.add(mm);
+      }
+      mm.needsUpdate = true;
+      tuned.add(mm);
+    });
+  });
+  if (!killed.size) return;
+  meshes.forEach(m => {
+    const p = m.userData.part;
+    if (!p || !p.mats) return;
+    p.mats.forEach(e => {
+      if (!killed.has(e.m)) return;
+      /* 只把高亮基线压黑，inten 保持原值，否则选中时轮辐不发光 */
+      e.base.setRGB(0, 0, 0);
+      e.m.emissive.setRGB(0, 0, 0);
+    });
+  });
+}
+
+/* ---------------------------------------------------------
+   Kenney 换漆：整车共用一张 colormap 调色板（车身 / 玻璃 / 轮胎 / 灯各占一块色区），
+   直接改 baseColor 会把轮胎和灯一起染色。这里改成在 shader 里做「定点换色」：
+   只有颜色接近原车身色的像素才被替换为新漆色，其余像素原样保留。
+   --------------------------------------------------------- */
+function probeBodyColor(meshes, tex) {
+  try {
+    const img = tex && tex.image;
+    if (!img) return null;
+    const w = img.width || img.naturalWidth || 0;
+    const h = img.height || img.naturalHeight || 0;
+    if (!w || !h) return null;
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const ctx = cv.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const body = meshes.find(m => /^body$/i.test(m.name || '')) || meshes[0];
+    const geo = body && body.geometry;
+    const uvAttr = geo && geo.attributes && geo.attributes.uv;
+    if (!uvAttr) return null;
+    /* Kenney 是「调色板贴图」：车身 / 玻璃 / 轮胎 / 灯具全部指向同一张 32px 网格色卡，
+       而且低多边形模型里一个三角形的三个 UV 常常落在同一点上（UV 面积恒为 0），
+       所以按 UV 面积采样一粒也采不到；按三维面积采样又会选中藏在底盘下的那块
+       大底板（绿色）。唯一可靠的做法是**从外部打射线**，统计真正可见的面。
+       注意射线要瞄向包围盒里的多个采样点：只瞄中心的话会全部打在同一块玻璃上。 */
+    const G = 32;
+    const votes = new Map();
+    body.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(body);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const radius = Math.max(1e-3, size.length() * 0.5);
+    const rc = new THREE.Raycaster();
+    rc.far = radius * 12;
+    const dirV = new THREE.Vector3(), orgV = new THREE.Vector3(), tgt = new THREE.Vector3();
+    // 12 个方位 × 3 个仰角
+    const dirs = [];
+    for (let i = 0; i < 12; i++) {
+      const az = (i / 12) * Math.PI * 2;
+      [0.16, 0.52, 1.05].forEach(el => {
+        dirs.push(new THREE.Vector3(
+          Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el),
+        ).normalize());
+      });
+    }
+    // 包围盒 3×3×3 采样点
+    const targets = [];
+    for (let ix = 0; ix < 3; ix++) for (let iy = 0; iy < 3; iy++) for (let iz = 0; iz < 3; iz++) {
+      targets.push(new THREE.Vector3(
+        center.x + (ix - 1) * size.x * 0.34,
+        center.y + (iy - 1) * size.y * 0.30,
+        center.z + (iz - 1) * size.z * 0.34,
+      ));
+    }
+    dirs.forEach(d => {
+      orgV.copy(center).addScaledVector(d, radius * 4);
+      targets.forEach(t => {
+        tgt.copy(t);
+        rc.set(orgV, tgt.sub(orgV).normalize());
+        rc.far = radius * 12;
+        const its = rc.intersectObject(body, false);
+        const hit = its && its[0];
+        if (!hit || !hit.uv) return;
+        const px = Math.min(w - 1, Math.max(0, Math.floor((((hit.uv.x % 1) + 1) % 1) * w)));
+        /* glTF 贴图 flipY=false：v 的 0 就在图片顶行，不需要再翻一次 */
+        const py = Math.min(h - 1, Math.max(0, Math.floor((((hit.uv.y % 1) + 1) % 1) * h)));
+        const k = Math.floor(py / G) * 4096 + Math.floor(px / G);
+        const cur = votes.get(k);
+        if (cur) cur.n++;
+        else votes.set(k, { n: 1, px, py });
+      });
+    });
+    const rows = [];
+    votes.forEach(v => {
+      const o = (v.py * w + v.px) * 4;
+      const c = new THREE.Color();
+      c.setRGB(data[o] / 255, data[o + 1] / 255, data[o + 2] / 255, THREE.SRGBColorSpace);
+      rows.push({ n: v.n, c, hs: hslOf(c) });
+    });
+    if (!rows.length) return null;
+    rows.sort((a, b) => b.n - a.n);
+    if (rows[0].n < 6) return null;
+    /* 票数最多的往往是玻璃 / 天窗（浅色大平面）。若它是「无彩色」，
+       而另有一族有彩色（真正的车漆）票数不算太少，就取那一族 —— 车漆通常有饱和度。 */
+    let pick = rows[0];
+    if (pick.hs.s < 0.20) {
+      const ch = rows.find(r => r.hs.s > 0.30 && r.n >= pick.n * 0.80);
+      if (ch) pick = ch;
+    }
+    return pick.c;
+  } catch (e) { return null; }
+}
+
+/* Kenney 的车身色不是一个颜色，而是一列「同色系明暗台阶」（亮面 / 侧面 / 暗面各占一格色卡）。
+   所以不能按精确颜色替换，否则只染亮面、侧面照样是原色，看起来一块块花的。
+   这里按**色相族**匹配（低饱和的纯白车身退化为亮度带匹配），并把原像素的相对亮度
+   乘到新漆色上，这样原模型的明暗层次完整保留。 */
+const SWAP_GLSL = `
+uniform vec3 uOld;
+uniform vec3 uNew;
+uniform float uMix;
+uniform float uTol;
+uniform float uHue;
+uniform float uRefLum;
+uniform float uMode;
+
+float hueOf(vec3 c){
+  float mx = max(max(c.r, c.g), c.b);
+  float mn = min(min(c.r, c.g), c.b);
+  float d = mx - mn;
+  if (d < 1e-5) return -1.0;
+  float h;
+  if (mx == c.r) h = mod((c.g - c.b) / d, 6.0);
+  else if (mx == c.g) h = (c.b - c.r) / d + 2.0;
+  else h = (c.r - c.g) / d + 4.0;
+  return h * 60.0;
+}
+float satOf(vec3 c){
+  float mx = max(max(c.r, c.g), c.b);
+  float mn = min(min(c.r, c.g), c.b);
+  return mx <= 1e-5 ? 0.0 : (mx - mn) / mx;
+}
+float lumOf(vec3 c){ return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+`;
+
+function makeSwapShader(uni) {
+  return shader => {
+    shader.uniforms.uOld = uni.uOld;
+    shader.uniforms.uNew = uni.uNew;
+    shader.uniforms.uMix = uni.uMix;
+    shader.uniforms.uTol = uni.uTol;
+    shader.uniforms.uHue = uni.uHue;
+    shader.uniforms.uRefLum = uni.uRefLum;
+    shader.uniforms.uMode = uni.uMode;
+    shader.fragmentShader = SWAP_GLSL + shader.fragmentShader.replace('#include <map_fragment>', [
+      '#ifdef USE_MAP',
+      '  vec4 sampledDiffuseColor = texture2D( map, vMapUv );',
+      '  vec3 src = sampledDiffuseColor.rgb;',
+      '  float sw = 0.0;',
+      '  if ( uMode < 0.5 ) {',
+      '    float dh = abs( mod( hueOf( src ) - uHue + 540.0, 360.0 ) - 180.0 );',
+      '    sw = ( 1.0 - smoothstep( uTol * 0.72, uTol, dh ) ) * smoothstep( 0.10, 0.24, satOf( src ) );',
+      '  } else {',
+      '    sw = 1.0 - smoothstep( uTol * 0.45, uTol, abs( lumOf( src ) - uRefLum ) );',
+      '  }',
+      '  sw *= uMix;',
+      '  vec3 tinted = uNew * clamp( lumOf( src ) / max( uRefLum, 0.02 ), 0.42, 1.85 );',
+      '  sampledDiffuseColor.rgb = mix( src, tinted, sw );',
+      '  diffuseColor *= sampledDiffuseColor;',
+      '#endif',
+    ].join('\n'));
+  };
+}
+
+/* 线性空间下的色相 / 饱和度 / 亮度（必须与 shader 里的算法一致） */
+function hslOf(c) {
+  const r = c.r, g = c.g, b = c.b;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  const s = mx <= 1e-5 ? 0 : d / mx;
+  let h = 0;
+  if (d > 1e-5) {
+    if (mx === r) h = (((g - b) / d) % 6 + 6) % 6;
+    else if (mx === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+  }
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return { h, s, lum };
+}
+
+function collectPaintKenney(meshes, key) {
+  let src = null;
+  meshes.forEach(m => {
+    (Array.isArray(m.material) ? m.material : [m.material]).forEach(mm => {
+      if (!src && mm && /^colormap$/i.test(String(mm.name || ''))) src = mm;
+    });
+  });
+  if (!src) return null;
+  const orig = probeBodyColor(meshes, src.map) || new THREE.Color(0xffffff);
+  const hs = hslOf(orig);
+  const neutral = hs.s < 0.24;                       // 白 / 银车身没有可用色相 → 走亮度带匹配
+  const uni = {
+    uOld: { value: orig.clone() },
+    uNew: { value: orig.clone() },
+    uMix: { value: 0 },
+    uTol: { value: neutral ? 0.26 : 21.0 },          // 度 / 亮度带
+    uHue: { value: hs.h },
+    uRefLum: { value: hs.lum },
+    uMode: { value: neutral ? 1 : 0 },
+  };
+  const entries = [];
+  let first = true;
+  // 每个 mesh 一份材质（否则选中高亮会整车一起亮），但共享同一套换色 uniform
+  meshes.forEach(m => {
+    const pm = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff, metalness: 0.25, roughness: 0.45,
+      clearcoat: 0.85, clearcoatRoughness: 0.10, envMapIntensity: 1.0,
+    });
+    pm.name = src.name;
+    pm.map = src.map;
+    pm.onBeforeCompile = makeSwapShader(uni);
+    m.material = pm;
+    entries.push({ mat: pm, primary: true, orig: orig.clone(), swap: uni, swapOwner: first, kenney: true });
+    first = false;
+  });
+  return { mats: entries, paint: PAINT_DEFAULT[key] || 'stock', finish: 'metal' };
+}
+
+/* 找出车漆材质并升级为带清漆层的物理材质 */
+function collectPaint(meshes, key) {
+  if (isKenney(key)) return collectPaintKenney(meshes, key);
+  const found = new Map();
+  meshes.forEach(m => {
+    (Array.isArray(m.material) ? m.material : [m.material]).forEach(mm => {
+      if (!mm || found.has(mm)) return;
+      const nm = String(mm.name || '').toLowerCase();
+      let primary = null;
+      if (key === 'ferrari') {
+        if (nm === 'body_color') primary = true;
+      } else if (/^paint\s*1\b/.test(nm)) primary = true;
+      else if (/^paint\s*2\b/.test(nm)) primary = false;
+      if (primary === null) return;
+      const pm = new THREE.MeshPhysicalMaterial({
+        color: mm.color ? mm.color.clone() : new THREE.Color(0x8a8a8a),
+        metalness: 0.88, roughness: 0.30,
+        clearcoat: 1, clearcoatRoughness: 0.05,
+        envMapIntensity: 1.15,
+      });
+      pm.name = mm.name;
+      if (mm.map) pm.map = mm.map;
+      found.set(mm, { mat: pm, primary, orig: pm.color.clone() });
+    });
+  });
+  if (!found.size) return null;
+  // 材质在网格间共享，替换一次即整车生效
+  meshes.forEach(m => {
+    if (Array.isArray(m.material)) m.material = m.material.map(mm => (found.get(mm) || {}).mat || mm);
+    else if (found.has(m.material)) m.material = found.get(m.material).mat;
+  });
+  return { mats: [...found.values()], paint: PAINT_DEFAULT[key] || 'techblue', finish: 'metal' };
+}
+
+/* 换漆过渡：颜色与漆面参数一起插值，避免整块车身瞬变 */
+const PAINT_TWEENS = new WeakMap();
+function tweenPaint(e, to, fk, ms = 460, opts = {}) {
+  const m = e.mat;
+  /* Kenney 走 shader 定点换色：不能改 m.color（贴图是全彩的，改了会整车染色），
+     且金属度要收敛，否则低多边形纯色漆面会变成一块反光金属。 */
+  const kf = e.kenney ? {
+    metalness: 0.10 + fk.metalness * 0.26,
+    roughness: 0.26 + fk.roughness * 0.40,
+    clearcoat: fk.clearcoat * 0.9,
+    ccRough: 0.08 + fk.ccRough * 0.5,
+    env: 0.85 + fk.env * 0.18,
+  } : fk;
+  const from = {
+    c: m.color.clone(),
+    metal: m.metalness, rough: m.roughness,
+    cc: m.clearcoat ?? 0, ccr: m.clearcoatRoughness ?? 0,
+    env: m.envMapIntensity ?? 1,
+  };
+  const sw = e.swap;
+  const swFrom = sw ? { c: sw.uNew.value.clone(), mix: sw.uMix.value } : null;
+  const toMix = opts.stock ? 0 : 1;
+  const prev = PAINT_TWEENS.get(m);
+  if (prev) cancelAnimationFrame(prev);
+  const t0 = performance.now();
+  const step = now => {
+    const k = Math.min(1, (now - t0) / ms);
+    const p = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;   // easeInOutQuad
+    const L = (a, b) => a + (b - a) * p;
+    if (!e.kenney) m.color.copy(from.c).lerp(to, p);
+    if (sw && e.swapOwner && swFrom) {
+      sw.uNew.value.copy(swFrom.c).lerp(to, p);
+      sw.uMix.value = L(swFrom.mix, toMix);
+    }
+    m.metalness = L(from.metal, kf.metalness);
+    m.roughness = L(from.rough, kf.roughness);
+    if ('clearcoat' in m) m.clearcoat = L(from.cc, kf.clearcoat);
+    if ('clearcoatRoughness' in m) m.clearcoatRoughness = L(from.ccr, kf.ccRough);
+    if ('envMapIntensity' in m) m.envMapIntensity = L(from.env, kf.env);
+    if (k < 1) PAINT_TWEENS.set(m, requestAnimationFrame(step));
+    else PAINT_TWEENS.delete(m);
+  };
+  PAINT_TWEENS.set(m, requestAnimationFrame(step));
+}
+
+function applyPaint(car, paintId, finishId) {
+  if (!car || !car.paint) return;
+  const pk = PAINTS.find(x => x.id === paintId) || PAINTS[0];
+  const fk = FINISHES.find(x => x.id === finishId) || FINISHES[0];
+  car.paint.paint = pk.id;
+  car.paint.finish = fk.id;
+  car.paint.mats.forEach(e => {
+    const to = pk.stock ? e.orig.clone() : new THREE.Color(e.primary ? pk.main : pk.sub);
+    tweenPaint(e, to, fk, 460, { stock: !!pk.stock });
+  });
+  syncPaintUI();
+}
+
+/* 面板 */
+const ptSw = document.getElementById('ptSw');
+const ptFn = document.getElementById('ptFn');
+const ptName = document.getElementById('ptName');
+
+PAINTS.forEach(pk => {
+  const b = document.createElement('button');
+  b.className = 'sw'; b.dataset.paint = pk.id; b.title = pk.cn;
+  const g = pk.stock ? 'linear-gradient(135deg,#c81f2c 0 52%,#6b0f18 52% 100%)'
+                     : `linear-gradient(135deg,${pk.main} 0 52%,${pk.sub} 52% 100%)`;
+  b.innerHTML = `<i style="background:${g}"></i>`;
+  b.onclick = () => { const c = CARS[current]; if (c) applyPaint(c, pk.id, c.paint.finish); };
+  ptSw.appendChild(b);
+});
+FINISHES.forEach(fk => {
+  const b = document.createElement('button');
+  b.className = 'fn'; b.dataset.finish = fk.id; b.textContent = fk.cn;
+  b.onclick = () => { const c = CARS[current]; if (c) applyPaint(c, c.paint.paint, fk.id); };
+  ptFn.appendChild(b);
+});
+
+function syncPaintUI() {
+  const car = CARS[current];
+  if (!car || !car.paint) return;
+  ptSw.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.paint === car.paint.paint));
+  ptFn.querySelectorAll('.fn').forEach(b => b.classList.toggle('on', b.dataset.finish === car.paint.finish));
+  const pk = PAINTS.find(x => x.id === car.paint.paint);
+  const fk = FINISHES.find(x => x.id === car.paint.finish);
+  ptName.textContent = (pk ? pk.cn : '') + (fk ? ' · ' + fk.cn : '');
+}
+
+function cyclePaint(step) {
+  const car = CARS[current];
+  if (!car || !car.paint) return;
+  const i = PAINTS.findIndex(x => x.id === car.paint.paint);
+  const n = (i + step + PAINTS.length) % PAINTS.length;
+  applyPaint(car, PAINTS[n].id, car.paint.finish);
+}
+function cycleFinish(step) {
+  const car = CARS[current];
+  if (!car || !car.paint) return;
+  const i = FINISHES.findIndex(x => x.id === car.paint.finish);
+  const n = (i + step + FINISHES.length) % FINISHES.length;
+  applyPaint(car, car.paint.paint, FINISHES[n].id);
+}
+
+/* =========================================================
+   9. 标注
+   ========================================================= */
+const labelsEl = document.getElementById('labels');
+const label = document.createElement('div');
+label.className = 'lbl';
+label.innerHTML = `<div class="box"><div class="lname"></div><div class="lspec"></div></div><div class="stem"></div>`;
+labelsEl.appendChild(label);
+
+const tmpV = new THREE.Vector3();
+function updateLabel() {
+  const car = CARS[current];
+  if (!car || !selected || !showLabels) { label.classList.remove('on'); return; }
+  const p = selected;
+  const wb = new THREE.Box3().setFromObject(p.mesh);
+  wb.getCenter(tmpV);
+  tmpV.project(camera);
+  if (tmpV.z > 1) { label.classList.remove('on'); return; }
+  const x = (tmpV.x * 0.5 + 0.5) * stage.clientWidth;
+  const y = (-tmpV.y * 0.5 + 0.5) * stage.clientHeight;
+  const onRight = x < stage.clientWidth * 0.58;
+  label.style.left = x + 'px';
+  label.style.top = y + 'px';
+  label.style.flexDirection = onRight ? 'row' : 'row-reverse';
+  label.querySelector('.box').style.textAlign = onRight ? 'left' : 'right';
+  label.querySelector('.lname').textContent = p.cn;
+  const meta = GROUP_META[p.gid] || {};
+  label.querySelector('.lspec').textContent = (meta.cn || '') + (p.exploded ? ' · 已拆出' : ' · 装配位');
+  label.classList.add('on');
+}
+
+/* =========================================================
+   10. 拾取
+   ========================================================= */
+function pickAt(clientX, clientY) {
+  const car = CARS[current];
+  if (!car) return null;
+  const r = canvas.getBoundingClientRect();
+  pointer.x = ((clientX - r.left) / r.width) * 2 - 1;
+  pointer.y = -((clientY - r.top) / r.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(car.parts.map(p => p.mesh), false);
+  for (const h of hits) {
+    if (h.object.userData.isGlow) continue;
+    let o = h.object;
+    while (o && !o.userData.part) o = o.parent;
+    if (o && o.userData.part) return o.userData.part;
+  }
+  return null;
+}
+
+let downXY = null;
+canvas.addEventListener('pointerdown', e => { downXY = [e.clientX, e.clientY]; });
+canvas.addEventListener('pointerup', e => {
+  if (!downXY) return;
+  const dx = e.clientX - downXY[0], dy = e.clientY - downXY[1];
+  downXY = null;
+  if (Math.hypot(dx, dy) > 6) return;      // 拖拽而非点击
+  const p = pickAt(e.clientX, e.clientY);
+  if (p) { select(p); togglePart(p); }
+  else { selected = null; updateGlow(); renderInfo(); syncList(); }
+});
+canvas.addEventListener('pointermove', e => {
+  const p = pickAt(e.clientX, e.clientY);
+  if (p !== hovered) {
+    hovered = p;
+    updateGlow();
+    canvas.style.cursor = p ? 'pointer' : 'grab';
+  }
+});
+canvas.addEventListener('dblclick', () => resize());
+
+/* =========================================================
+   11. 交互按钮 / 快捷键
+   ========================================================= */
+document.getElementById('tabs').addEventListener('click', e => {
+  const t = e.target.closest('.tab');
+  if (t && t.dataset.car) switchCar(t.dataset.car);
+});
+document.getElementById('btnExplode').onclick = () => {
+  const car = CARS[current];
+  const any = car.parts.some(p => !p.exploded);
+  explodeAll(any);
+  renderInfo();
+};
+document.getElementById('btnReset').onclick = resetAll;
+
+const tRotate = document.getElementById('tRotate');
+tRotate.onclick = () => {
+  controls.autoRotate = !controls.autoRotate;
+  tRotate.classList.toggle('on', controls.autoRotate);
+};
+const tLabel = document.getElementById('tLabel');
+tLabel.onclick = () => {
+  showLabels = !showLabels;
+  tLabel.classList.toggle('on', showLabels);
+};
+document.getElementById('tExplode').onclick = () => {
+  const car = CARS[current];
+  explodeAll(car.parts.some(p => !p.exploded));
+  renderInfo();
+};
+document.getElementById('tView').onclick = () => {
+  const angles = [
+    homeDir(),
+    new THREE.Vector3(0, 0.12, 1),
+    new THREE.Vector3(1, 0.1, 0),
+    new THREE.Vector3(0.62, 0.85, 0.5),
+  ];
+  viewIdx = (viewIdx + 1) % angles.length;
+  const d = camera.position.distanceTo(controls.target);
+  camGoal = { pos: controls.target.clone().addScaledVector(angles[viewIdx].normalize(), d), on: true };
+};
+let viewIdx = 0;
+
+addEventListener('keydown', e => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    const car = CARS[current];
+    explodeAll(car.parts.some(p => !p.exploded));
+    renderInfo();
+  } else if (e.key === 'r' || e.key === 'R') {
+    resetAll();
+  } else if (e.key === 'Escape') {
+    selected = null; updateGlow(); renderInfo(); syncList();
+  } else if (/^[1-9]$/.test(e.key) && CAR_ORDER[+e.key - 1]) switchCar(CAR_ORDER[+e.key - 1]);
+  else if (e.key === 'p' || e.key === 'P') cyclePaint(1);
+  else if (e.key === 'f' || e.key === 'F') cycleFinish(1);
+});
+
+/* 移动端抽屉 */
+document.getElementById('mList').onclick = () => {
+  document.body.classList.toggle('drawer-left');
+  document.body.classList.remove('drawer-right');
+};
+document.getElementById('mInfo').onclick = () => {
+  document.body.classList.toggle('drawer-right');
+  document.body.classList.remove('drawer-left');
+};
+
+/* =========================================================
+   12. 切换车型
+   ========================================================= */
+let camGoal = null;
+
+function switchCar(key) {
+  if (!CARS[key] || current === key) return;
+  if (current && CARS[current]) CARS[current].group.visible = false;
+  current = key;
+  CARS[key].group.visible = true;
+  selected = null; hovered = null;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.car === key));
+  revealTab();
+  document.getElementById('btnExplode').textContent = '全部拆解';
+  buildList(); renderInfo(); updateMeta(); updateGlow(); syncPaintUI();
+  const d = frameDist(0);
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  camGoal = { pos: controls.target.clone().addScaledVector(dir, d), on: true };
+  document.getElementById('load').classList.add('gone');
+}
+
+/* 车型 tab 窄屏会横向滚动：把当前项卷进视野，并在右边缘做渐隐提示 */
+const tabsEl = document.querySelector('.tabs');
+function syncTabFade() {
+  if (!tabsEl) return;
+  tabsEl.classList.toggle('fade', tabsEl.scrollWidth - tabsEl.clientWidth > 4);
+}
+function revealTab() {
+  const a = tabsEl && tabsEl.querySelector('.tab.on');
+  if (a && a.scrollIntoView) a.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  syncTabFade();
+}
+if (tabsEl) {
+  tabsEl.addEventListener('scroll', syncTabFade, { passive: true });
+  window.addEventListener('resize', syncTabFade);
+  window.addEventListener('load', syncTabFade);
+}
+
+/* =========================================================
+   13. 尺寸 / 主循环
+   ========================================================= */
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  const car = CARS[current];
+  if (car) {
+    const exSum = car.parts.reduce((a, p) => a + (GROUP_META[p.gid] ? 1 : 0) * p.t, 0);
+    const total = car.parts.length || 1;
+    const d = frameDist(exSum / total);
+    if (!camGoal) {
+      const dir = camera.position.clone().sub(controls.target).normalize();
+      camera.position.copy(controls.target).addScaledVector(dir, d);
+      autoDist = d;
+    }
+  }
+}
+addEventListener('resize', resize);
+
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const car = CARS[current];
+
+  if (car) {
+    /* 开场镜头 */
+    if (introT < 1) {
+      introT = Math.min(1, introT + dt / 1.5);
+      const k = 1 - Math.pow(1 - introT, 3);
+      const from = frameDist(0) * 1.7, to = frameDist(0);
+      const dir = camera.position.clone().sub(controls.target).normalize();
+      camera.position.copy(controls.target).addScaledVector(dir, lerp(from, to, k));
+      if (introT >= 1) autoDist = to;
+    }
+
+    /* 拆解插值 */
+    let exSum = 0;
+    for (const p of car.parts) {
+      if (p.t !== p.target) {
+        p.t += (p.target - p.t) * Math.min(1, dt * 6.5);
+        if (Math.abs(p.t - p.target) < 0.002) p.t = p.target;
+      }
+      exSum += p.t;
+      const k = easeIO(p.t);
+      const dist = explodeAmount(p);
+      p.mesh.position.copy(p.base).addScaledVector(p.dir, dist * k);
+
+      /* 高亮 */
+      if (Math.abs(p.glow - p.glowTarget) > 0.001) {
+        p.glow += (p.glowTarget - p.glow) * Math.min(1, dt * 9);
+      }
+      p.mats.forEach(m => {
+        m.m.emissive.copy(m.base).lerp(ACC, p.glow * 0.16);
+        m.m.emissiveIntensity = m.inten;
+      });
+      p.glowMat.uniforms.uIntensity.value = p.glow * 0.95;
+    }
+
+    /* 自动构图 */
+    const ratio = clamp01(exSum / (car.parts.length || 1));
+    if (camGoal && camGoal.on) {
+      camera.position.lerp(camGoal.pos, Math.min(1, dt * 3.4));
+      if (camera.position.distanceTo(camGoal.pos) < 0.08) {
+        camGoal = null;
+        autoDist = camera.position.distanceTo(controls.target);
+      }
+    } else if (introT >= 1) {
+      const targetD = frameDist(ratio);
+      const curD = camera.position.distanceTo(controls.target);
+      if (Math.abs(curD - autoDist) < 0.8) {
+        const nd = lerp(curD, targetD, Math.min(1, dt * 2.2));
+        const dir = camera.position.clone().sub(controls.target).normalize();
+        camera.position.copy(controls.target).addScaledVector(dir, nd);
+        autoDist = nd;
+      }
+    }
+  }
+
+  controls.update(dt);
+  renderer.render(scene, camera);
+  updateLabel();
+}
+
+/* =========================================================
+   14. 启动
+   ========================================================= */
+/* 只展示这两台官方高精度模型。Kenney 低多边形系列（ksedan / ksuv / kfire / kamb / ktaxi）
+   的车型定义与换漆通路都还在 CAR_DEFS / collectPaintKenney 里，需要时把 key 追加进这个数组即可恢复。 */
+const CAR_ORDER = ['concept', 'ferrari'];
+
+/* 车型 tab 按 CAR_ORDER 生成，避免 HTML 里写死 */
+(function buildTabs() {
+  const box = document.getElementById('tabs');
+  CAR_ORDER.forEach((k, i) => {
+    const d = CAR_DEFS[k];
+    if (!d) return;
+    const b = document.createElement('button');
+    b.className = 'tab' + (i === 0 ? ' on' : '');
+    b.dataset.car = k;
+    b.innerHTML = `${d.tab || String(d.name).split(' ')[0]}<i>—</i>`;
+    box.appendChild(b);
+  });
+})();
+
+(async function boot() {
+  const order = CAR_ORDER;
+  for (const k of order) await loadCar(k);
+
+  const want = QS.get('car');
+  current = (want && CARS[want]) ? want : 'concept';
+  const car = CARS[current];
+  if (!car) {
+    document.getElementById('loadTxt').textContent = '没有可用的模型，请通过本地服务器访问。';
+    return;
+  }
+  for (const k in CARS) CARS[k].group.visible = (k === current);
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.car === current));
+  revealTab();
+
+  document.querySelectorAll('.tab').forEach(t => {
+    const c = CARS[t.dataset.car];
+    if (c) t.querySelector('i').textContent = c.parts.length;
+  });
+  buildList();
+  renderInfo();
+  updateMeta();
+  updateGlow();
+
+  /* 车漆：默认配色 + 深链 ?paint=xxx&finish=yyy */
+  const ptId = QS.get('paint'), fnId = QS.get('finish');
+  Object.values(CARS).forEach(c => {
+    applyPaint(c, ptId || c.paint.paint, fnId || c.paint.finish);
+  });
+  syncPaintUI();
+
+  /* 首帧机位 */
+  resize();
+  const d0 = frameDist(0);
+  camera.position.copy(controls.target).addScaledVector(homeDir(), d0);
+  autoDist = d0;
+
+  if (QS.has('explode')) { explodeAll(true); }
+  if (QS.has('still')) { controls.autoRotate = false; tRotate.classList.remove('on'); }
+  if (QS.has('p')) {
+    const idx = parseInt(QS.get('p'), 10);
+    const p = CARS[current].parts.find(x => x.idx === idx);
+    if (p) { select(p); if (QS.has('ex')) togglePart(p); }
+  }
+
+  /* 快照模式：跳过所有过渡，直接落到终态（便于截图与分享深链） */
+  if (QS.has('snap')) {
+    introT = 1;
+    camGoal = null;
+    const c2 = CARS[current];
+    let ex = 0;
+    c2.parts.forEach(p => {
+      p.t = p.target;
+      p.glow = p.glowTarget;
+      p.mesh.position.copy(p.base).addScaledVector(p.dir, explodeAmount(p) * easeIO(p.t));
+      ex += p.t;
+    });
+    const dS = frameDist(ex / (c2.parts.length || 1));
+    camera.position.copy(controls.target).addScaledVector(homeDir(), dS);
+    autoDist = dS;
+  }
+  document.getElementById('load').classList.add('gone');
+  animate();
+})();
+</script>
+</body>
+</html>

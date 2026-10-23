@@ -146,4 +146,15 @@ vite.config.ts.timestamp-*
 .astro/
 
 # Turbo Repo
-.turbo
+.turbo/
+
+# ---- WorkBuddy 项目特定 ----
+# WorkBuddy 项目数据（含 memory / 本地状态，不对外公开）
+.workbuddy/
+
+# 本地验证 / 诊断脚本与截图
+.preview/
+
+# OS 垃圾文件
+.DS_Store
+Thumbs.db
