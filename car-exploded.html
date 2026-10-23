@@ -684,8 +684,8 @@ const CAR_DEFS = {
   concept: {
     key:'concept',
     name:'Concept Car', cn:'概念跑车',
-    file:'assets/cars/carconcept.glb',
-    draco:false,
+    file:'assets/cars/carconcept.draco.glb',
+    draco:true,
     tag:'Khronos · CarConcept · 整车拆解样例',
     spec: {
       '布局':'中置后驱 · 双座',
@@ -1008,7 +1008,7 @@ function classifyFerrari(parentName, name) {
 function loadCar(key) {
   const def = CAR_DEFS[key];
   return new Promise(resolve => {
-    loader.load(def.file, gltf => {
+    const onLoaded = gltf => {
       const src = gltf.scene;
       src.updateMatrixWorld(true);
 
@@ -1119,17 +1119,43 @@ function loadCar(key) {
       CARS[key] = { def, group, parts, box, size, center, maxDim, carCenter, s, paint, loaded:true };
       group.visible = false;
       resolve(CARS[key]);
-    },
-    xhr => {
-      if (xhr.lengthComputable && key === 'concept') {
-        document.getElementById('loadTxt').textContent = '载入 Concept Car… ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
+    };
+
+    const onProgress = xhr => {
+      const el = document.getElementById('loadTxt');
+      if (!el) return;
+      const mb = (xhr.loaded / 1048576).toFixed(1);
+      if (xhr.lengthComputable && xhr.total > 0) {
+        // gzip 传输时 total 是压缩后字节、loaded 是解压后字节，会算出 >100%，这里封顶
+        const pct = Math.min(100, Math.round(xhr.loaded / xhr.total * 100));
+        el.textContent = `载入 ${def.name}… ${pct}%（${mb} MB）`;
+      } else {
+        el.textContent = `载入 ${def.name}… ${mb} MB`;
       }
-    },
-    err => {
+    };
+
+    const onError = err => {
       document.getElementById('loadTxt').textContent = '模型加载失败：' + (err.message || err);
       console.error('[load]', key, err);
       resolve(null);
-    });
+    };
+
+    /* GitHub Pages 国内访问很慢：线上优先走 jsDelivr 镜像，失败再回退同源 */
+    const onPages = /\.github\.io$/.test(location.hostname);
+    const CDN = 'https://cdn.jsdelivr.net/gh/CodeGanHaoZ/CTViewer@main/';
+    let fellBack = false;
+    const start = url => {
+      loader.load(url, onLoaded, onProgress, err => {
+        if (onPages && !fellBack) {
+          fellBack = true;
+          console.warn('[load] CDN 失败，回退同源：', def.file);
+          start('./' + def.file);
+          return;
+        }
+        onError(err);
+      });
+    };
+    start(onPages ? CDN + def.file : './' + def.file);
   });
 }
 
@@ -2101,25 +2127,38 @@ const CAR_ORDER = ['concept', 'ferrari'];
   });
 })();
 
-(async function boot() {
-  const order = CAR_ORDER;
-  for (const k of order) await loadCar(k);
+function updateTabCounts() {
+  document.querySelectorAll('.tab').forEach(t => {
+    const c = CARS[t.dataset.car];
+    t.querySelector('i').textContent = c ? c.parts.length : '—';
+  });
+}
 
+(async function boot() {
   const want = QS.get('car');
-  current = (want && CARS[want]) ? want : 'concept';
-  const car = CARS[current];
+  const preferred = (want && CAR_DEFS[want]) ? want : (CAR_ORDER[0] || 'concept');
+
+  /* 先只加载主车型，尽快出画面；其余车型后台补载，避免被大文件 / 弱网阻塞 */
+  const slowTip = setTimeout(() => {
+    const el = document.getElementById('loadTxt');
+    if (el && !document.querySelector('#load.gone')) el.textContent += '（网络较慢，请稍候…）';
+  }, 25000);
+  await loadCar(preferred);
+  clearTimeout(slowTip);
+
+  current = CARS[preferred] ? preferred : (CAR_ORDER.find(k => CARS[k]) || null);
+  const car = current ? CARS[current] : null;
   if (!car) {
-    document.getElementById('loadTxt').textContent = '没有可用的模型，请通过本地服务器访问。';
+    document.getElementById('loadTxt').innerHTML =
+      '模型加载失败（网络较慢或中断）<br><b id="retry" style="color:var(--acc);cursor:pointer;font-size:11px">点击重试</b>';
+    const r = document.getElementById('retry');
+    if (r) r.onclick = () => location.reload();
     return;
   }
   for (const k in CARS) CARS[k].group.visible = (k === current);
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.car === current));
   revealTab();
-
-  document.querySelectorAll('.tab').forEach(t => {
-    const c = CARS[t.dataset.car];
-    if (c) t.querySelector('i').textContent = c.parts.length;
-  });
+  updateTabCounts();
   buildList();
   renderInfo();
   updateMeta();
@@ -2164,6 +2203,11 @@ const CAR_ORDER = ['concept', 'ferrari'];
   }
   document.getElementById('load').classList.add('gone');
   animate();
+
+  /* 后台补载其余车型，加载完成后启用对应 tab 与计数 */
+  CAR_ORDER.filter(k => k !== current && !CARS[k]).forEach(k => {
+    loadCar(k).then(c => { if (c) updateTabCounts(); });
+  });
 })();
 </script>
 </body>
